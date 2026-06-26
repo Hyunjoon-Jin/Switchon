@@ -3,6 +3,13 @@
   command = "bash netlify_build.sh"
   publish = "build/web"
 
+[build.environment]
+  # 빌드 중 내려받는 Flutter SDK 내부에 구글 API 키 패턴이 들어있어
+  # 비밀값 검사가 오탐함 → 도구 폴더는 검사 제외.
+  SECRETS_SCAN_OMIT_PATHS = "flutter/**,.dart_tool/**,.idea/**"
+  # Supabase anon 키는 클라이언트에 넣도록 설계된 공개용 값(노출 정상).
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_ANON_KEY,SUPABASE_URL"
+
 # SPA 라우팅: 모든 경로를 index.html 로 (Flutter 라우터가 처리)
 [[redirects]]
   from = "/*"
