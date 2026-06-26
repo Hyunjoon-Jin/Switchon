@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+  <base href="/">
+  <title>스위치온</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#2E7D5B">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #ffffff; }
+    #boot {
+      position: fixed; inset: 0; z-index: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #2E7D5B; font-family: -apple-system, "Noto Sans KR", sans-serif;
+      font-size: 16px;
+    }
+    #err {
+      position: fixed; inset: 0; z-index: 99999; display: none;
+      padding: 20px; box-sizing: border-box; overflow: auto;
+      background: #fff; color: #B00020; white-space: pre-wrap;
+      font-family: monospace; font-size: 12px; line-height: 1.5;
+    }
+    #err h3 { color: #111; font-family: -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="boot">로딩 중…</div>
+  <div id="err"><h3>오류가 발생했어요 (이 화면을 캡처해 주세요)</h3></div>
+  <script>
+    function showErr(msg) {
+      var el = document.getElementById('err');
+      el.style.display = 'block';
+      el.appendChild(document.createTextNode(msg + '\n'));
+    }
+    window.addEventListener('error', function (e) {
+      showErr('ERROR: ' + (e.message || e.error || e) +
+        (e.filename ? ' @ ' + e.filename + ':' + e.lineno : ''));
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e.reason;
+      showErr('PROMISE: ' + (r && (r.message || r) || 'unknown'));
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
