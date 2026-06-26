@@ -115,6 +115,24 @@ class SupabaseService {
     return DailyLog.fromMap(row);
   }
 
+  /// 최근 [days] 일의 일일 로그(날짜 오름차순).
+  Future<List<DailyLog>> fetchRecentDailyLogs(int days) async {
+    final uid = _requireUid();
+    final now = DateTime.now();
+    final from = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: days - 1));
+    final fromStr = from.toIso8601String().split('T').first;
+    final rows = await _client
+        .from('daily_logs')
+        .select()
+        .eq('user_id', uid)
+        .gte('log_date', fromStr)
+        .order('log_date', ascending: true);
+    return (rows as List)
+        .map((e) => DailyLog.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // --- fasting_sessions -------------------------------------------------------
 
   String _requireUid() {
@@ -145,6 +163,19 @@ class SupabaseService {
     return FastingSession.fromMap(row);
   }
 
+  /// 전체 단식 세션(통계용).
+  Future<List<FastingSession>> fetchAllFastings() async {
+    final uid = _requireUid();
+    final rows = await _client
+        .from('fasting_sessions')
+        .select()
+        .eq('user_id', uid)
+        .order('started_at', ascending: false);
+    return (rows as List)
+        .map((e) => FastingSession.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> endFasting(String id, {required bool canceled}) async {
     await _client.from('fasting_sessions').update({
       'status': canceled ? 'canceled' : 'completed',
@@ -163,6 +194,19 @@ class SupabaseService {
         .select()
         .eq('user_id', uid)
         .gte('logged_at', start.toUtc().toIso8601String())
+        .order('logged_at', ascending: false);
+    return (rows as List)
+        .map((e) => MealLog.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 전체 식단 기록(통계용 — 셰이크 누적·위반 집계).
+  Future<List<MealLog>> fetchAllMeals() async {
+    final uid = _requireUid();
+    final rows = await _client
+        .from('meal_logs')
+        .select()
+        .eq('user_id', uid)
         .order('logged_at', ascending: false);
     return (rows as List)
         .map((e) => MealLog.fromMap(e as Map<String, dynamic>))

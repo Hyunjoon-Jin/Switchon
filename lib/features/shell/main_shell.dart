@@ -4,6 +4,7 @@ import '../fasting/fasting_screen.dart';
 import '../home/home_screen.dart';
 import '../meals/meals_screen.dart';
 import '../reminders/reminders_screen.dart';
+import '../stats/stats_screen.dart';
 
 /// 하단 탭 셸 — 오늘 / 단식 / 기록 / 알림.
 class MainShell extends StatefulWidget {
@@ -20,6 +21,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     FastingScreen(),
     MealsScreen(),
+    StatsScreen(),
     RemindersScreen(),
   ];
 
@@ -45,6 +47,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.restaurant_outlined),
             selectedIcon: Icon(Icons.restaurant),
             label: '기록',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: '통계',
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),

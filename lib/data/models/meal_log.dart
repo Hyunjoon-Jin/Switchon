@@ -5,7 +5,7 @@ class MealLog {
     required this.loggedAt,
     required this.type,
     this.shakeCount = 0,
-    this.photoPath,
+    this.photoPath = '',
     this.memo,
     this.foodTags = const [],
     this.ruleViolation,

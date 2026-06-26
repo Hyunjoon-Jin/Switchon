@@ -36,8 +36,13 @@
 - [x] 식단 기록 시 태그 선택 → 현재 주차 기준 **위반/주의 부드러운 안내**, `meal_logs.food_tags`·`rule_violation` 저장
 - [x] 식단 목록에 위반 배지 + 태그 표시
 
+### 2차 — 통계 대시보드 ✅
+- [x] **순수 함수 집계 엔진**(`stats.dart` `computeStats`) — 원자료 → 요약, 테스트 완료
+- [x] 달성률 추이(최근 14일 커스텀 막대, 의존성 0), 항목별 달성 일수(물·수면·단식·운동)
+- [x] 누적 지표: 셰이크 합 · 단식 완료 횟수 · 규칙 위반 빈도
+- [x] 통계 탭 추가(오늘/단식/기록/통계/알림)
+
 ### 다음 단계
-- **2차(진행 예정)**: 통계 대시보드 (달성률 추이 · 단식/셰이크 누적 · 위반 빈도)
 - **2차**: 주차 분기 안내(근육량 회복 → 반복/진행/유지)
 - **3차**: 커뮤니티(그룹·인증샷·응원) + 서버 원격 푸시
 
@@ -128,6 +133,7 @@ lib/
     home/widgets/{mission_card, checklist_card}.dart
     fasting/{fasting_screen, fasting_controller}.dart
     meals/{meals_screen, meals_controller}.dart
+    stats/{stats, stats_controller, stats_screen}.dart  # 집계는 순수 함수
     reminders/{reminders_screen, reminder_service}.dart
     setup_required_screen.dart
 supabase/
