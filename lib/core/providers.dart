@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/profile.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/supabase_service.dart';
+import '../services/notification_service.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -15,6 +16,10 @@ final supabaseServiceProvider = Provider<SupabaseService>((ref) {
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(ref.watch(supabaseClientProvider));
+});
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
 });
 
 /// 인증 상태 스트림 — 로그인/로그아웃에 따라 라우팅 게이트가 반응.

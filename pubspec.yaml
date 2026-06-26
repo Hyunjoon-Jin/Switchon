@@ -18,9 +18,13 @@ dependencies:
   flutter_riverpod: ^2.5.1
   shared_preferences: ^2.3.2
 
-  # P2에서 사용할 로컬 알림 (단식/셰이크/물/취침 리마인더)
+  # 로컬 알림 (단식/셰이크/물/취침 리마인더)
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
+
+  # 식단 사진
+  image_picker: ^1.1.2
 
   # Utils
   intl: ^0.19.0

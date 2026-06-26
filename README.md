@@ -25,9 +25,38 @@
 - [x] 홈: 오늘의 단계 + 미션 카드 + 체크리스트 + 식품 가이드 + 전체 진행 바
 - [x] 단계 엔진 / 일일 로그 단위 테스트
 
+### P2 — 타이머 · 식단 기록 · 로컬 알림 ✅
+- [x] **단식 타이머**(14h/24h) — 라이브 카운트다운, 종료 시각 로컬 알림 예약(`fasting_sessions`, `0003`)
+- [x] **셰이크 카운터** + **식단 기록**(사진 업로드 · 메모), 사진은 비공개 버킷 서명 URL로 표시
+- [x] **반복 리마인더**(셰이크·물·취침 4h 전 마감) 설정 화면 + `NotificationService`
+- [x] 하단 탭 셸: 오늘 / 단식 / 기록 / 알림
+
 ### 다음 단계
-- **P2**: 단식/셰이크 타이머 · 식단 기록 · 로컬 알림
-- **P3+**: 규칙 위반 감지 · 통계 · (3차) 커뮤니티
+- **P3+**: 규칙 위반 감지 · 통계 대시보드 · 주차 분기 안내 · (3차) 커뮤니티
+
+---
+
+## ⚠️ 네이티브 설정 (알림·사진) — `flutter create .` 후 반드시 적용
+
+로컬 알림과 사진 선택은 네이티브 권한 설정이 필요합니다.
+
+**Android** (`android/app/src/main/AndroidManifest.xml`)
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+<uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+<!-- flutter_local_notifications: 부팅 후 알림 재예약 -->
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+```
+`<application>` 내부에 예약 알림 리시버 등록(패키지 문서 참고).
+`compileSdk`/`minSdk`는 image_picker·local_notifications 권장값(예: minSdk 21+).
+
+**iOS** (`ios/Runner/Info.plist`)
+```xml
+<key>NSPhotoLibraryUsageDescription</key>
+<string>식사 사진을 기록하기 위해 사진 접근이 필요합니다.</string>
+```
+`ios/Runner/AppDelegate.swift`에 알림 등록 코드 추가(flutter_local_notifications 문서의 iOS 설정 참고).
 
 ---
 
@@ -80,18 +109,23 @@ lib/
     program/stage_engine.dart     # 주차/일차 계산 + 일시정지·재개 (순수 함수)
     providers.dart                # Riverpod providers
   data/
-    models/{profile, daily_log}.dart
+    models/{profile, daily_log, fasting_session, meal_log}.dart
     services/{supabase,auth}_service.dart
+  services/notification_service.dart  # 로컬 알림 (단식·셰이크·물·취침)
   features/
+    shell/main_shell.dart         # 하단 탭(오늘/단식/기록/알림)
     onboarding/{onboarding_gate, onboarding_flow}.dart
     auth/sign_in_screen.dart
-    home/home_screen.dart
-    home/daily_log_controller.dart
+    home/{home_screen, daily_log_controller}.dart
     home/widgets/{mission_card, checklist_card}.dart
+    fasting/{fasting_screen, fasting_controller}.dart
+    meals/{meals_screen, meals_controller}.dart
+    reminders/{reminders_screen, reminder_service}.dart
     setup_required_screen.dart
 supabase/
   migrations/0001_initial_schema.sql
   migrations/0002_pause_resume.sql
+  migrations/0003_fasting_sessions.sql
   seed.sql
 ```
 

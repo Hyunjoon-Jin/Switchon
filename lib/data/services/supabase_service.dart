@@ -1,7 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/program/stage_engine.dart';
 import '../models/daily_log.dart';
+import '../models/fasting_session.dart';
+import '../models/meal_log.dart';
 import '../models/profile.dart';
 
 /// Supabase 접근 래퍼 (auth + profiles).
@@ -109,5 +113,100 @@ class SupabaseService {
         .select()
         .single();
     return DailyLog.fromMap(row);
+  }
+
+  // --- fasting_sessions -------------------------------------------------------
+
+  String _requireUid() {
+    final uid = currentUser?.id;
+    if (uid == null) throw StateError('로그인된 사용자가 없습니다.');
+    return uid;
+  }
+
+  Future<FastingSession?> fetchActiveFasting() async {
+    final uid = _requireUid();
+    final row = await _client
+        .from('fasting_sessions')
+        .select()
+        .eq('user_id', uid)
+        .eq('status', 'active')
+        .maybeSingle();
+    if (row == null) return null;
+    return FastingSession.fromMap(row);
+  }
+
+  Future<FastingSession> startFasting(int targetHours) async {
+    final uid = _requireUid();
+    final row = await _client
+        .from('fasting_sessions')
+        .insert({'user_id': uid, 'target_hours': targetHours})
+        .select()
+        .single();
+    return FastingSession.fromMap(row);
+  }
+
+  Future<void> endFasting(String id, {required bool canceled}) async {
+    await _client.from('fasting_sessions').update({
+      'status': canceled ? 'canceled' : 'completed',
+      'ended_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', id);
+  }
+
+  // --- meal_logs --------------------------------------------------------------
+
+  Future<List<MealLog>> fetchTodayMeals() async {
+    final uid = _requireUid();
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final rows = await _client
+        .from('meal_logs')
+        .select()
+        .eq('user_id', uid)
+        .gte('logged_at', start.toUtc().toIso8601String())
+        .order('logged_at', ascending: false);
+    return (rows as List)
+        .map((e) => MealLog.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> addShake() async {
+    final uid = _requireUid();
+    await _client.from('meal_logs').insert({
+      'user_id': uid,
+      'type': 'shake',
+      'shake_count': 1,
+    });
+  }
+
+  Future<void> addMeal({String? memo, String? photoPath}) async {
+    final uid = _requireUid();
+    await _client.from('meal_logs').insert({
+      'user_id': uid,
+      'type': 'meal',
+      if (memo != null && memo.isNotEmpty) 'memo': memo,
+      if (photoPath != null && photoPath.isNotEmpty) 'photo_url': photoPath,
+    });
+  }
+
+  Future<void> deleteMeal(String id) async {
+    await _client.from('meal_logs').delete().eq('id', id);
+  }
+
+  // --- storage (meal-photos, 사용자 폴더 격리) ----------------------------------
+
+  Future<String> uploadMealPhoto(Uint8List bytes, String fileName) async {
+    final uid = _requireUid();
+    final path = '$uid/$fileName';
+    await _client.storage.from('meal-photos').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(upsert: true),
+        );
+    return path;
+  }
+
+  /// 비공개 버킷이라 표시용 서명 URL을 발급(1시간 유효).
+  Future<String> signedPhotoUrl(String path) {
+    return _client.storage.from('meal-photos').createSignedUrl(path, 3600);
   }
 }

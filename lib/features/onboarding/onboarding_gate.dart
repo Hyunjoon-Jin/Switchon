@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../auth/sign_in_screen.dart';
-import '../home/home_screen.dart';
+import '../shell/main_shell.dart';
 import 'onboarding_flow.dart';
 
 /// 인증 + 온보딩 상태에 따라 첫 화면을 분기하는 라우팅 게이트.
@@ -35,7 +35,7 @@ class OnboardingGate extends ConsumerWidget {
             if (profile == null || !profile.hasCompletedOnboarding) {
               return const OnboardingFlow();
             }
-            return const HomeScreen();
+            return const MainShell();
           },
         );
       },
