@@ -5,6 +5,7 @@ import '../../core/program/stage_engine.dart';
 import '../../core/providers.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
+import '../reminders/reminders_screen.dart';
 import 'daily_log_controller.dart';
 import 'widgets/checklist_card.dart';
 import 'widgets/mission_card.dart';
@@ -198,6 +199,13 @@ class _OverflowMenu extends ConsumerWidget {
       onSelected: (value) async {
         final service = ref.read(supabaseServiceProvider);
         switch (value) {
+          case 'reminders':
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RemindersScreen(),
+              ),
+            );
+            break;
           case 'pause':
             await service.pauseProgram(DateTime.now());
             ref.invalidate(profileProvider);
@@ -214,6 +222,7 @@ class _OverflowMenu extends ConsumerWidget {
         }
       },
       itemBuilder: (context) => [
+        const PopupMenuItem(value: 'reminders', child: Text('알림 설정')),
         if (paused)
           const PopupMenuItem(value: 'resume', child: Text('프로그램 재개'))
         else

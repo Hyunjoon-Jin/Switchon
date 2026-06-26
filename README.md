@@ -42,9 +42,24 @@
 - [x] 누적 지표: 셰이크 합 · 단식 완료 횟수 · 규칙 위반 빈도
 - [x] 통계 탭 추가(오늘/단식/기록/통계/알림)
 
-### 다음 단계
-- **2차**: 주차 분기 안내(근육량 회복 → 반복/진행/유지)
-- **3차**: 커뮤니티(그룹·인증샷·응원) + 서버 원격 푸시
+### 2차 — 주차 분기 안내 ✅
+- [x] 분기 판정 순수 엔진(`branch_engine.dart`) — 근육 회복/목표 도달 → 반복·진행·유지
+- [x] 주 마지막 날 점검 카드 + 질문/안내 화면(`progress` 저장)
+
+### 3차 — 커뮤니티 ✅ / 원격 푸시 🟡(서버 토대)
+- [x] 같은 주차 그룹 피드, 인증샷(공개 버킷), 응원(좋아요), 댓글, 닉네임(`0004`)
+- [x] 커뮤니티 탭 추가, 알림 설정은 홈 메뉴로 이동
+- [x] 원격 푸시 **서버 토대**: `device_tokens` 테이블 + Edge Function 샘플(`supabase/functions/notify`)
+- [ ] 클라이언트 FCM 연동(`firebase_messaging`)은 **Firebase 프로젝트 설정이 필요**해 분리 — 아래 참고
+
+### 원격 푸시 활성화(남은 작업)
+MVP 알림은 전부 로컬이며, 커뮤니티 응원/댓글의 **백그라운드 푸시**만 서버가 필요합니다.
+1. Firebase 프로젝트 생성 → `google-services.json`(Android)·`GoogleService-Info.plist`(iOS) 추가
+2. `firebase_messaging` 의존성 추가 후, 토큰을 `CommunityService.upsertDeviceToken()` 로 등록
+3. `supabase functions deploy notify` + Function Secrets(FCM 서비스계정) 설정
+4. `community_cheers`/`community_comments` INSERT 에 **Database Webhook → notify** 연결
+
+> 이 토대까지는 구현돼 있고, 위 4단계는 Firebase 자격이 있어야 검증 가능해 의도적으로 분리했습니다.
 
 ---
 
@@ -134,12 +149,16 @@ lib/
     fasting/{fasting_screen, fasting_controller}.dart
     meals/{meals_screen, meals_controller}.dart
     stats/{stats, stats_controller, stats_screen}.dart  # 집계는 순수 함수
+    branch/branch_check_screen.dart   # 주차 분기 안내
+    community/{community_screen, post_detail_screen, community_controller, nickname}.dart
     reminders/{reminders_screen, reminder_service}.dart
     setup_required_screen.dart
 supabase/
   migrations/0001_initial_schema.sql
   migrations/0002_pause_resume.sql
   migrations/0003_fasting_sessions.sql
+  migrations/0004_community.sql
+  functions/notify/index.ts          # 원격 푸시(FCM) Edge Function 샘플
   seed.sql
 ```
 

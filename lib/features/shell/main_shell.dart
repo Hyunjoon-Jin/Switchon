@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../community/community_screen.dart';
 import '../fasting/fasting_screen.dart';
 import '../home/home_screen.dart';
 import '../meals/meals_screen.dart';
-import '../reminders/reminders_screen.dart';
 import '../stats/stats_screen.dart';
 
 /// 하단 탭 셸 — 오늘 / 단식 / 기록 / 알림.
@@ -22,7 +22,7 @@ class _MainShellState extends State<MainShell> {
     FastingScreen(),
     MealsScreen(),
     StatsScreen(),
-    RemindersScreen(),
+    CommunityScreen(),
   ];
 
   @override
@@ -54,9 +54,9 @@ class _MainShellState extends State<MainShell> {
             label: '통계',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
-            label: '알림',
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups),
+            label: '커뮤니티',
           ),
         ],
       ),

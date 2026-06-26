@@ -8,6 +8,7 @@ class Profile {
     this.status = 'active',
     this.pausedAt,
     this.goal,
+    this.displayName,
     this.trackWeight = false,
     this.birthYear,
     this.ageVerified = false,
@@ -22,6 +23,7 @@ class Profile {
   final String status; // active | paused | completed
   final DateTime? pausedAt;
   final String? goal;
+  final String? displayName;
   final bool trackWeight;
   final int? birthYear;
   final bool ageVerified;
@@ -46,6 +48,7 @@ class Profile {
           ? null
           : DateTime.parse(map['paused_at'] as String),
       goal: map['goal'] as String?,
+      displayName: map['display_name'] as String?,
       trackWeight: (map['track_weight'] as bool?) ?? false,
       birthYear: map['birth_year'] as int?,
       ageVerified: (map['age_verified'] as bool?) ?? false,
@@ -64,6 +67,7 @@ class Profile {
             ? null
             : pausedAt!.toIso8601String().split('T').first,
         'goal': goal,
+        'display_name': displayName,
         'track_weight': trackWeight,
         'birth_year': birthYear,
         'age_verified': ageVerified,
@@ -80,6 +84,7 @@ class Profile {
     String? status,
     DateTime? pausedAt,
     String? goal,
+    String? displayName,
     bool? trackWeight,
     int? birthYear,
     bool? ageVerified,
@@ -94,6 +99,7 @@ class Profile {
       status: status ?? this.status,
       pausedAt: pausedAt ?? this.pausedAt,
       goal: goal ?? this.goal,
+      displayName: displayName ?? this.displayName,
       trackWeight: trackWeight ?? this.trackWeight,
       birthYear: birthYear ?? this.birthYear,
       ageVerified: ageVerified ?? this.ageVerified,
