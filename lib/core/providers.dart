@@ -5,6 +5,7 @@ import '../data/models/profile.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/supabase_service.dart';
 import '../services/notification_service.dart';
+import 'program/stage_engine.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -34,4 +35,17 @@ final profileProvider = FutureProvider<Profile?>((ref) async {
   final service = ref.watch(supabaseServiceProvider);
   if (!service.isSignedIn) return null;
   return service.fetchProfile();
+});
+
+/// 현재 단계 위치(주차/일차/규칙). 프로필이 없거나 시작 전이면 null.
+final currentStagePositionProvider = Provider<StagePosition?>((ref) {
+  final profile = ref.watch(profileProvider).valueOrNull;
+  final start = profile?.startDate;
+  if (profile == null || start == null) return null;
+  return StageEngine.compute(
+    startDate: start,
+    status: profile.status,
+    pausedAt: profile.pausedAt,
+    today: DateTime.now(),
+  );
 });

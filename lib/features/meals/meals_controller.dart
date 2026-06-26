@@ -25,10 +25,18 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
     await _reload();
   }
 
-  Future<void> addMeal({String? memo, String? photoPath}) async {
-    await ref
-        .read(supabaseServiceProvider)
-        .addMeal(memo: memo, photoPath: photoPath);
+  Future<void> addMeal({
+    String? memo,
+    String? photoPath,
+    List<String> foodTags = const [],
+    bool? ruleViolation,
+  }) async {
+    await ref.read(supabaseServiceProvider).addMeal(
+          memo: memo,
+          photoPath: photoPath,
+          foodTags: foodTags,
+          ruleViolation: ruleViolation,
+        );
     await _reload();
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/program/diet_rules.dart';
 import '../../core/providers.dart';
 import '../../data/models/meal_log.dart';
 import 'meals_controller.dart';
@@ -144,12 +145,30 @@ class _MealTile extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(time, style: theme.textTheme.labelMedium),
+                  Row(
+                    children: [
+                      Text(time, style: theme.textTheme.labelMedium),
+                      if (meal.ruleViolation == true) ...[
+                        const SizedBox(width: 8),
+                        const _ViolationBadge(),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     meal.memo?.isNotEmpty == true ? meal.memo! : '식사',
                     style: theme.textTheme.bodyMedium,
                   ),
+                  if (meal.foodTags.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      meal.foodTags
+                          .map((id) => FoodTags.byId(id)?.label ?? id)
+                          .join(' · '),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -201,6 +220,7 @@ class _AddMealSheet extends ConsumerStatefulWidget {
 
 class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   final _memo = TextEditingController();
+  final Set<String> _selected = {};
   XFile? _picked;
   bool _saving = false;
 
@@ -220,20 +240,32 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
     if (file != null) setState(() => _picked = file);
   }
 
+  RuleEvaluation? _evaluate() {
+    final pos = ref.read(currentStagePositionProvider);
+    if (pos == null) return null;
+    return DietRules.evaluate(
+      stageId: pos.stage.id,
+      week: pos.week,
+      tagIds: _selected.toList(),
+    );
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     final service = ref.read(supabaseServiceProvider);
+    final eval = _evaluate();
     try {
       String? photoPath;
       if (_picked != null) {
         final bytes = await _picked!.readAsBytes();
-        final name =
-            'meal_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final name = 'meal_${DateTime.now().millisecondsSinceEpoch}.jpg';
         photoPath = await service.uploadMealPhoto(bytes, name);
       }
       await ref.read(mealsControllerProvider.notifier).addMeal(
             memo: _memo.text.trim(),
             photoPath: photoPath,
+            foodTags: _selected.toList(),
+            ruleViolation: eval?.isViolation,
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -248,41 +280,133 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final eval = _evaluate();
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('식사 기록', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: _saving ? null : _pick,
-            icon: const Icon(Icons.photo_camera_outlined),
-            label: Text(_picked == null ? '사진 추가 (선택)' : '사진 선택됨 ✓'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _memo,
-            maxLength: 140,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: '메모 (선택)',
-              hintText: '무엇을 드셨나요?',
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('식사 기록', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _pick,
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: Text(_picked == null ? '사진 추가 (선택)' : '사진 선택됨 ✓'),
             ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('저장'),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('무엇을 드셨나요? (태그 선택)',
+                  style: theme.textTheme.labelLarge),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final tag in FoodTags.all)
+                  FilterChip(
+                    label: Text(tag.label),
+                    selected: _selected.contains(tag.id),
+                    onSelected: (sel) => setState(() {
+                      if (sel) {
+                        _selected.add(tag.id);
+                      } else {
+                        _selected.remove(tag.id);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+            if (eval != null && !eval.isClean) ...[
+              const SizedBox(height: 12),
+              _RuleBanner(eval: eval),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _memo,
+              maxLength: 140,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: '메모 (선택)',
+                hintText: '간단한 메모를 남겨보세요',
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: _saving
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('저장'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 식단 목록 타일에 붙는 작은 위반 배지.
+class _ViolationBadge extends StatelessWidget {
+  const _ViolationBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '단계 제한',
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: theme.colorScheme.onErrorContainer),
+      ),
+    );
+  }
+}
+
+/// 규칙 위반/주의 부드러운 안내 배너.
+class _RuleBanner extends StatelessWidget {
+  const _RuleBanner({required this.eval});
+  final RuleEvaluation eval;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isViolation = eval.isViolation;
+    final bg = isViolation
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.secondaryContainer;
+    final fg = isViolation
+        ? theme.colorScheme.onErrorContainer
+        : theme.colorScheme.onSecondaryContainer;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(isViolation ? Icons.info_outline : Icons.lightbulb_outline,
+              color: fg, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(eval.message ?? '', style: TextStyle(color: fg)),
           ),
         ],
       ),

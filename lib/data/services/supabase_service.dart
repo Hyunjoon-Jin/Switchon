@@ -178,13 +178,20 @@ class SupabaseService {
     });
   }
 
-  Future<void> addMeal({String? memo, String? photoPath}) async {
+  Future<void> addMeal({
+    String? memo,
+    String? photoPath,
+    List<String> foodTags = const [],
+    bool? ruleViolation,
+  }) async {
     final uid = _requireUid();
     await _client.from('meal_logs').insert({
       'user_id': uid,
       'type': 'meal',
       if (memo != null && memo.isNotEmpty) 'memo': memo,
       if (photoPath != null && photoPath.isNotEmpty) 'photo_url': photoPath,
+      'food_tags': foodTags,
+      if (ruleViolation != null) 'rule_violation': ruleViolation,
     });
   }
 

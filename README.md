@@ -31,8 +31,15 @@
 - [x] **반복 리마인더**(셰이크·물·취침 4h 전 마감) 설정 화면 + `NotificationService`
 - [x] 하단 탭 셸: 오늘 / 단식 / 기록 / 알림
 
+### 2차 — 규칙 위반 감지 ✅
+- [x] **음식 태그 분류 + 단계별 규칙 엔진**(`diet_rules.dart`) — `allowOnly`/`forbidden`/`caution`
+- [x] 식단 기록 시 태그 선택 → 현재 주차 기준 **위반/주의 부드러운 안내**, `meal_logs.food_tags`·`rule_violation` 저장
+- [x] 식단 목록에 위반 배지 + 태그 표시
+
 ### 다음 단계
-- **P3+**: 규칙 위반 감지 · 통계 대시보드 · 주차 분기 안내 · (3차) 커뮤니티
+- **2차(진행 예정)**: 통계 대시보드 (달성률 추이 · 단식/셰이크 누적 · 위반 빈도)
+- **2차**: 주차 분기 안내(근육량 회복 → 반복/진행/유지)
+- **3차**: 커뮤니티(그룹·인증샷·응원) + 서버 원격 푸시
 
 ---
 
@@ -107,6 +114,7 @@ lib/
     theme/app_theme.dart          # 차분한 그린 테마
     program/switchon_program.dart # 단계/미션 규칙 (오프라인 미러)
     program/stage_engine.dart     # 주차/일차 계산 + 일시정지·재개 (순수 함수)
+    program/diet_rules.dart       # 음식 태그 + 단계별 규칙 위반 감지 (순수 함수)
     providers.dart                # Riverpod providers
   data/
     models/{profile, daily_log, fasting_session, meal_log}.dart
