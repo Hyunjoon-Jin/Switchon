@@ -1,0 +1,10 @@
+# Netlify 빌드 설정 — Flutter Web 을 클라우드에서 빌드해 정적 파일로 배포.
+[build]
+  command = "bash netlify_build.sh"
+  publish = "build/web"
+
+# SPA 라우팅: 모든 경로를 index.html 로 (Flutter 라우터가 처리)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

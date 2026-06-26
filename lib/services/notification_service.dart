@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
@@ -34,6 +35,7 @@ class NotificationService {
   );
 
   Future<void> init() async {
+    if (kIsWeb) return; // 웹은 로컬 알림 미지원 — 조용히 건너뜀
     if (_initialized) return;
     tzdata.initializeTimeZones();
     try {
@@ -58,6 +60,7 @@ class NotificationService {
 
   /// 알림 권한 요청 (iOS / Android 13+).
   Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
     await init();
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
@@ -81,6 +84,7 @@ class NotificationService {
   // --- 단식 종료 알림 (절대 시각) ----------------------------------------------
 
   Future<void> scheduleFastingEnd(DateTime endTime, int targetHours) async {
+    if (kIsWeb) return;
     await init();
     final when = tz.TZDateTime.from(endTime, tz.local);
     if (when.isBefore(tz.TZDateTime.now(tz.local))) return;
@@ -96,7 +100,8 @@ class NotificationService {
     );
   }
 
-  Future<void> cancelFastingEnd() => _plugin.cancel(idFastingEnd);
+  Future<void> cancelFastingEnd() =>
+      kIsWeb ? Future.value() : _plugin.cancel(idFastingEnd);
 
   // --- 반복 일일 리마인더 (매일 같은 시각) --------------------------------------
 
@@ -107,6 +112,7 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (kIsWeb) return;
     await init();
     await _plugin.zonedSchedule(
       id,
@@ -121,8 +127,10 @@ class NotificationService {
     );
   }
 
-  Future<void> cancel(int id) => _plugin.cancel(id);
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancel(int id) =>
+      kIsWeb ? Future.value() : _plugin.cancel(id);
+  Future<void> cancelAll() =>
+      kIsWeb ? Future.value() : _plugin.cancelAll();
 
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
