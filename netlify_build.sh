@@ -23,13 +23,10 @@ cp tools/index.html web/index.html
 echo "▶ 의존성 설치…"
 flutter pub get
 
-echo "▶ 웹 빌드…"
-# CanvasKit 을 외부 CDN 대신 사이트에 포함(--no-web-resources-cdn) — CDN 차단 시 흰 화면 방지.
-# 해당 플래그가 없는 버전이면 플래그 없이 재시도.
-flutter build web --release --no-web-resources-cdn \
-  --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
-  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
-|| flutter build web --release \
+echo "▶ 웹 빌드 (진단용 profile — 읽을 수 있는 스택)…"
+# 진단 단계: --profile 로 빌드하면 에러 스택에 실제 Dart 위치가 보임.
+# 원인 확인 후 다시 --release 로 되돌릴 예정.
+flutter build web --profile \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 
