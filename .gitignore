@@ -1,0 +1,30 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Secrets / local env
+.env
+*.keystore
+*.jks
+ios/Flutter/flutter_export_environment.sh
+android/key.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated native folders are recreated via `flutter create .`
+# Keep them out of VCS noise only if you regenerate; otherwise commit them.
