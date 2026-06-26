@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/program/switchon_program.dart';
+import '../../core/program/stage_engine.dart';
 import '../../core/providers.dart';
 import '../../data/models/profile.dart';
+import 'daily_log_controller.dart';
+import 'widgets/checklist_card.dart';
+import 'widgets/mission_card.dart';
 
-/// 홈 (P0 자리표시).
-/// 시작일로부터 현재 주차/일차를 계산해 "오늘의 미션 카드"를 보여줍니다.
-/// 일일 체크리스트·타이머·기록 등 본격 기능은 P1~P2에서 채웁니다.
+/// 홈 — 오늘의 단계(주차/일차) + 미션 + 일일 체크리스트 + 식품 가이드.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -19,13 +20,11 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('오늘'),
         actions: [
-          IconButton(
-            tooltip: '로그아웃',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-              ref.invalidate(profileProvider);
-            },
+          profileAsync.maybeWhen(
+            data: (p) => p == null
+                ? const SizedBox.shrink()
+                : _OverflowMenu(profile: p),
+            orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
@@ -43,116 +42,265 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Today extends StatelessWidget {
+class _Today extends ConsumerWidget {
   const _Today({required this.profile});
   final Profile profile;
 
-  /// 시작일 기준 경과일 → 주차/일차. (정식 일시정지·재개 로직은 P1의 단계 엔진에서)
-  ({int week, int day}) _position() {
-    final start = profile.startDate;
-    if (start == null) return (week: 1, day: 1);
-    final today = DateTime.now();
-    final days = DateTime(today.year, today.month, today.day)
-        .difference(DateTime(start.year, start.month, start.day))
-        .inDays;
-    final clamped = days < 0 ? 0 : days;
-    final week = (clamped ~/ 7 + 1).clamp(1, SwitchOnProgram.totalWeeks);
-    final day = (clamped % 7 + 1);
-    return (week: week, day: day);
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final pos = StageEngine.compute(
+      startDate: profile.startDate ?? DateTime.now(),
+      status: profile.status,
+      pausedAt: profile.pausedAt,
+      today: DateTime.now(),
+    );
+    final stage = pos.stage;
+    final logAsync = ref.watch(dailyLogControllerProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(profileProvider);
+        ref.invalidate(dailyLogControllerProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          if (pos.isCompleted) const _CompletedBanner(),
+          if (pos.isPaused) const _PausedBanner(),
+          Text(
+            '${pos.week}주차  ·  ${pos.day}일차',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: theme.colorScheme.primary),
+          ),
+          const SizedBox(height: 4),
+          Text(stage.title, style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          _ProgramProgress(programDay: pos.programDay, totalDays: pos.totalDays),
+          const SizedBox(height: 20),
+
+          // 오늘의 체크리스트 (P1 핵심)
+          logAsync.when(
+            loading: () => const Card(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            error: (e, _) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('체크리스트를 불러오지 못했어요.\n$e'),
+              ),
+            ),
+            data: (log) => ChecklistCard(
+              log: log,
+              onAddWater: (ml) => _guard(
+                context,
+                () => ref.read(dailyLogControllerProvider.notifier).addWater(ml),
+              ),
+              onSetSleep: (h) => _guard(
+                context,
+                () => ref
+                    .read(dailyLogControllerProvider.notifier)
+                    .setSleepHours(h),
+              ),
+              onToggleFasting: () => _guard(
+                context,
+                () => ref
+                    .read(dailyLogControllerProvider.notifier)
+                    .toggleFasting(),
+              ),
+              onToggleExercise: () => _guard(
+                context,
+                () => ref
+                    .read(dailyLogControllerProvider.notifier)
+                    .toggleExercise(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          MissionCard(mission: stage.mission),
+          const SizedBox(height: 16),
+          _FoodGuide(allowed: stage.allowedFoods, forbidden: stage.forbiddenFoods),
+
+          if (stage.notes != null) ...[
+            const SizedBox(height: 16),
+            _NoteCard(text: stage.notes!),
+          ],
+          const SizedBox(height: 24),
+          Center(
+            child: Text(
+              '단식/셰이크 타이머 · 식단 기록은 곧 추가됩니다 (P2)',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
+  Future<void> _guard(BuildContext context, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장에 실패했어요. 잠시 후 다시 시도해 주세요.')),
+        );
+      }
+    }
+  }
+}
+
+class _ProgramProgress extends StatelessWidget {
+  const _ProgramProgress({required this.programDay, required this.totalDays});
+  final int programDay;
+  final int totalDays;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pos = _position();
-    final stage = SwitchOnProgram.stageFor(pos.week, pos.day);
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: (programDay / totalDays).clamp(0.0, 1.0),
+            minHeight: 8,
+          ),
+        ),
+        const SizedBox(height: 6),
         Text(
-          '${pos.week}주차  ·  ${pos.day}일차',
-          style: theme.textTheme.titleMedium
-              ?.copyWith(color: theme.colorScheme.primary),
-        ),
-        const SizedBox(height: 4),
-        Text(stage.title, style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 20),
-
-        // 오늘의 미션 카드
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.flag_outlined,
-                        color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Text('오늘의 미션', style: theme.textTheme.titleMedium),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                for (final m in stage.mission)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.radio_button_unchecked, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(m)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        _FoodGuide(
-          allowed: stage.allowedFoods,
-          forbidden: stage.forbiddenFoods,
-        ),
-
-        if (stage.notes != null) ...[
-          const SizedBox(height: 16),
-          Card(
-            color: theme.colorScheme.secondaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline,
-                      color: theme.colorScheme.onSecondaryContainer),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      stage.notes!,
-                      style: TextStyle(
-                          color: theme.colorScheme.onSecondaryContainer),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 24),
-        Center(
-          child: Text(
-            '일일 체크리스트 · 단식 타이머 · 식단 기록은 곧 추가됩니다 (P1~P2)',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
+          '전체 진행  $programDay / $totalDays일',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
+    );
+  }
+}
+
+class _OverflowMenu extends ConsumerWidget {
+  const _OverflowMenu({required this.profile});
+  final Profile profile;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paused = profile.status == 'paused';
+    return PopupMenuButton<String>(
+      onSelected: (value) async {
+        final service = ref.read(supabaseServiceProvider);
+        switch (value) {
+          case 'pause':
+            await service.pauseProgram(DateTime.now());
+            ref.invalidate(profileProvider);
+            break;
+          case 'resume':
+            await service.resumeProgram(profile, DateTime.now());
+            ref.invalidate(profileProvider);
+            break;
+          case 'signout':
+            await ref.read(authServiceProvider).signOut();
+            ref.invalidate(profileProvider);
+            ref.invalidate(dailyLogControllerProvider);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        if (paused)
+          const PopupMenuItem(value: 'resume', child: Text('프로그램 재개'))
+        else
+          const PopupMenuItem(value: 'pause', child: Text('프로그램 일시정지')),
+        const PopupMenuItem(value: 'signout', child: Text('로그아웃')),
+      ],
+    );
+  }
+}
+
+class _PausedBanner extends StatelessWidget {
+  const _PausedBanner();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.pause_circle_outline,
+                color: theme.colorScheme.onSecondaryContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '일시정지 중이에요. 일차는 멈춰 있어요 — 준비되면 메뉴에서 재개하세요.',
+                style:
+                    TextStyle(color: theme.colorScheme.onSecondaryContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedBanner extends StatelessWidget {
+  const _CompletedBanner();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.celebration_outlined,
+                color: theme.colorScheme.onPrimaryContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '4주 프로그램을 끝까지 완주했어요. 정말 잘하셨어요! 👏',
+                style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline,
+                color: theme.colorScheme.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      color: theme.colorScheme.onSecondaryContainer)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

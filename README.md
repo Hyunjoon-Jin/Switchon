@@ -10,17 +10,22 @@
 
 ---
 
-## 현재 구현 상태 (P0)
+## 현재 구현 상태
 
+### P0 — 기반 + 온보딩 ✅
 - [x] 프로젝트 스캐폴드 (Flutter + Riverpod + Supabase)
 - [x] Supabase 스키마 + RLS + 트리거 (`supabase/migrations/0001_initial_schema.sql`)
 - [x] 주차별 규칙 시드 (`supabase/seed.sql`)
 - [x] 온보딩 — **안전 고지(의료 조언 아님)** → **나이 게이트(만 19세)** → 프로그램 설정
 - [x] 이메일/비밀번호 인증
-- [x] 홈 자리표시: 시작일 기준 주차/일차 + 오늘의 미션 카드 + 식품 가이드
+
+### P1 — 단계 엔진 + 일일 체크리스트 ✅
+- [x] **단계 추적 엔진**(`stage_engine.dart`) — 시작일 기준 주차/일차, **일시정지·재개**(`0002_pause_resume.sql`)
+- [x] **일일 체크리스트** — 물(2L 목표)·수면(6h)·단식·운동 + **달성률 링 시각화**
+- [x] 홈: 오늘의 단계 + 미션 카드 + 체크리스트 + 식품 가이드 + 전체 진행 바
+- [x] 단계 엔진 / 일일 로그 단위 테스트
 
 ### 다음 단계
-- **P1**: 단계 추적 엔진(일시정지·재개) · 일일 체크리스트 · 달성률
 - **P2**: 단식/셰이크 타이머 · 식단 기록 · 로컬 알림
 - **P3+**: 규칙 위반 감지 · 통계 · (3차) 커뮤니티
 
@@ -72,17 +77,21 @@ lib/
     config/app_config.dart        # 환경변수 · 나이 기준
     theme/app_theme.dart          # 차분한 그린 테마
     program/switchon_program.dart # 단계/미션 규칙 (오프라인 미러)
+    program/stage_engine.dart     # 주차/일차 계산 + 일시정지·재개 (순수 함수)
     providers.dart                # Riverpod providers
   data/
-    models/profile.dart
+    models/{profile, daily_log}.dart
     services/{supabase,auth}_service.dart
   features/
     onboarding/{onboarding_gate, onboarding_flow}.dart
     auth/sign_in_screen.dart
     home/home_screen.dart
+    home/daily_log_controller.dart
+    home/widgets/{mission_card, checklist_card}.dart
     setup_required_screen.dart
 supabase/
   migrations/0001_initial_schema.sql
+  migrations/0002_pause_resume.sql
   seed.sql
 ```
 
