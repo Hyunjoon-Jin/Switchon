@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/program/stage_engine.dart';
 import '../../core/providers.dart';
 import '../../data/models/profile.dart';
+import '../branch/branch_check_screen.dart';
 import 'daily_log_controller.dart';
 import 'widgets/checklist_card.dart';
 import 'widgets/mission_card.dart';
@@ -68,6 +69,7 @@ class _Today extends ConsumerWidget {
         children: [
           if (pos.isCompleted) const _CompletedBanner(),
           if (pos.isPaused) const _PausedBanner(),
+          _WeeklyCheckCard(stageId: stage.id),
           Text(
             '${pos.week}주차  ·  ${pos.day}일차',
             style: theme.textTheme.titleMedium
@@ -218,6 +220,63 @@ class _OverflowMenu extends ConsumerWidget {
           const PopupMenuItem(value: 'pause', child: Text('프로그램 일시정지')),
         const PopupMenuItem(value: 'signout', child: Text('로그아웃')),
       ],
+    );
+  }
+}
+
+/// 주 마지막 날 + 아직 점검 안 했을 때 노출되는 주차 점검 카드.
+class _WeeklyCheckCard extends ConsumerWidget {
+  const _WeeklyCheckCard({required this.stageId});
+  final String stageId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final due = ref.watch(weeklyCheckDueProvider).valueOrNull;
+    if (due == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        color: theme.colorScheme.tertiaryContainer,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    BranchCheckScreen(week: due, stageId: stageId),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.checklist_rtl,
+                    color: theme.colorScheme.onTertiaryContainer),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('$due주차 점검할 시간이에요',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color:
+                                  theme.colorScheme.onTertiaryContainer)),
+                      Text('이번 주를 돌아보고 다음 단계를 안내받으세요',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme
+                                  .colorScheme.onTertiaryContainer)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    color: theme.colorScheme.onTertiaryContainer),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

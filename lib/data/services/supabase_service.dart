@@ -7,6 +7,7 @@ import '../models/daily_log.dart';
 import '../models/fasting_session.dart';
 import '../models/meal_log.dart';
 import '../models/profile.dart';
+import '../models/progress.dart';
 
 /// Supabase 접근 래퍼 (auth + profiles).
 /// P1~P2에서 daily_logs / meal_logs / progress 메서드를 여기에 확장합니다.
@@ -86,6 +87,40 @@ class SupabaseService {
 
   Future<Profile> completeProgram() {
     return _patchProfile({'status': 'completed', 'paused_at': null});
+  }
+
+  // --- progress (주차 점검 / 분기) ----------------------------------------------
+
+  Future<WeekProgress?> fetchWeekProgress(int weekNo) async {
+    final uid = _requireUid();
+    final row = await _client
+        .from('progress')
+        .select()
+        .eq('user_id', uid)
+        .eq('week_no', weekNo)
+        .maybeSingle();
+    if (row == null) return null;
+    return WeekProgress.fromMap(row);
+  }
+
+  Future<WeekProgress> saveWeekCheck({
+    required int weekNo,
+    required String stage,
+    String? branchResult,
+  }) async {
+    final uid = _requireUid();
+    final row = await _client
+        .from('progress')
+        .upsert({
+          'user_id': uid,
+          'week_no': weekNo,
+          'stage': stage,
+          if (branchResult != null) 'branch_result': branchResult,
+          'completed_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'user_id,week_no')
+        .select()
+        .single();
+    return WeekProgress.fromMap(row);
   }
 
   // --- daily_logs -------------------------------------------------------------

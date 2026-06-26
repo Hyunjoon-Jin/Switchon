@@ -49,3 +49,14 @@ final currentStagePositionProvider = Provider<StagePosition?>((ref) {
     today: DateTime.now(),
   );
 });
+
+/// 주차 점검이 가능한 주차 번호(주 마지막 날 + 아직 점검 안 함) 또는 null.
+final weeklyCheckDueProvider = FutureProvider<int?>((ref) async {
+  final pos = ref.watch(currentStagePositionProvider);
+  if (pos == null || pos.isPaused) return null;
+  if (pos.day != 7) return null; // 주 마지막 날에만 노출
+  final existing =
+      await ref.watch(supabaseServiceProvider).fetchWeekProgress(pos.week);
+  if (existing != null && existing.isChecked) return null;
+  return pos.week;
+});
