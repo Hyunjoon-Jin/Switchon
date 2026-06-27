@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
-import '../../core/program/diet_rules.dart';
 import '../../core/providers.dart';
 import '../../data/models/meal_log.dart';
 import '../meal_guide/meal_guide_screen.dart';
+import 'history_screen.dart';
+import 'meal_detail_screen.dart';
+import 'meal_editor_screen.dart';
 import 'meals_controller.dart';
 
-/// 식단 기록 화면 — 셰이크 카운터 + 식사 사진/메모.
+/// 오늘의 식단 기록 — 셰이크 카운터 + 끼니별 식사 + 상세/히스토리.
 class MealsScreen extends ConsumerWidget {
   const MealsScreen({super.key});
 
@@ -20,6 +21,13 @@ class MealsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('오늘의 기록'),
         actions: [
+          IconButton(
+            tooltip: '기록 보기',
+            icon: const Icon(Icons.calendar_month_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const HistoryScreen()),
+            ),
+          ),
           IconButton(
             tooltip: '식단 가이드',
             icon: const Icon(Icons.menu_book_outlined),
@@ -35,8 +43,10 @@ class MealsScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddMeal(context, ref),
-        icon: const Icon(Icons.restaurant_outlined),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const MealEditorScreen()),
+        ),
+        icon: const Icon(Icons.add),
         label: const Text('식사 기록'),
       ),
       body: mealsAsync.when(
@@ -64,25 +74,19 @@ class MealsScreen extends ConsumerWidget {
                 )
               else
                 for (final m in meals)
-                  _MealTile(
+                  _MealRow(
                     meal: m,
-                    onDelete: () => ref
-                        .read(mealsControllerProvider.notifier)
-                        .delete(m.id),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MealDetailScreen(meal: m),
+                      ),
+                    ),
                   ),
               const SizedBox(height: 80),
             ],
           );
         },
       ),
-    );
-  }
-
-  Future<void> _openAddMeal(BuildContext context, WidgetRef ref) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const _AddMealSheet(),
     );
   }
 }
@@ -126,356 +130,45 @@ class _ShakeCounter extends StatelessWidget {
   }
 }
 
-class _MealTile extends ConsumerWidget {
-  const _MealTile({required this.meal, required this.onDelete});
+class _MealRow extends StatelessWidget {
+  const _MealRow({required this.meal, required this.onTap});
   final MealLog meal;
-  final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time =
         '${meal.loggedAt.hour.toString().padLeft(2, '0')}:${meal.loggedAt.minute.toString().padLeft(2, '0')}';
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: theme.colorScheme.secondaryContainer,
+          child: Text(meal.slotLabel.characters.first,
+              style: TextStyle(color: theme.colorScheme.onSecondaryContainer)),
+        ),
+        title: Text('${meal.slotLabel} · $time'),
+        subtitle: Text(
+          (meal.memo ?? '').isNotEmpty ? meal.memo! : '기록 보기',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (meal.hasPhoto)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: _Thumb(path: meal.photoPath),
-              )
-            else
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.restaurant),
+              Icon(Icons.photo_outlined,
+                  size: 18, color: theme.colorScheme.onSurfaceVariant),
+            if (meal.ruleViolation == true)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Icon(Icons.info_outline,
+                    size: 18, color: theme.colorScheme.error),
               ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(time, style: theme.textTheme.labelMedium),
-                      if (meal.ruleViolation == true) ...[
-                        const SizedBox(width: 8),
-                        const _ViolationBadge(),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    meal.memo?.isNotEmpty == true ? meal.memo! : '식사',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                  if (meal.foodTags.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      meal.foodTags
-                          .map((id) => FoodTags.byId(id)?.label ?? id)
-                          .join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onDelete,
-            ),
+            const Icon(Icons.chevron_right),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Thumb extends ConsumerWidget {
-  const _Thumb({required this.path});
-  final String path;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<String>(
-      future: ref.read(supabaseServiceProvider).signedPhotoUrl(path),
-      builder: (context, snap) {
-        if (snap.hasData) {
-          return Image.network(
-            snap.data!,
-            width: 56,
-            height: 56,
-            fit: BoxFit.cover,
-          );
-        }
-        return const SizedBox(
-          width: 56,
-          height: 56,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        );
-      },
-    );
-  }
-}
-
-/// 식사 기록 입력 시트 — 메모 + 선택적 사진.
-class _AddMealSheet extends ConsumerStatefulWidget {
-  const _AddMealSheet();
-
-  @override
-  ConsumerState<_AddMealSheet> createState() => _AddMealSheetState();
-}
-
-class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
-  final _memo = TextEditingController();
-  final Set<String> _selected = {};
-  XFile? _picked;
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _memo.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pick() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1280,
-      imageQuality: 80,
-    );
-    if (file != null) setState(() => _picked = file);
-  }
-
-  RuleEvaluation? _evaluate() {
-    final pos = ref.read(currentStagePositionProvider);
-    if (pos == null) return null;
-    return DietRules.evaluate(
-      stageId: pos.stage.id,
-      week: pos.week,
-      tagIds: _selected.toList(),
-    );
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final service = ref.read(supabaseServiceProvider);
-    final eval = _evaluate();
-    try {
-      String? photoPath;
-      if (_picked != null) {
-        final bytes = await _picked!.readAsBytes();
-        final name = 'meal_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        photoPath = await service.uploadMealPhoto(bytes, name);
-      }
-      await ref.read(mealsControllerProvider.notifier).addMeal(
-            memo: _memo.text.trim(),
-            photoPath: photoPath,
-            foodTags: _selected.toList(),
-            ruleViolation: eval?.isViolation,
-          );
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장에 실패했어요. 다시 시도해 주세요.')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final eval = _evaluate();
-    final pos = ref.watch(currentStagePositionProvider);
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('식사 기록', style: theme.textTheme.titleLarge),
-            if (pos != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.tips_and_updates_outlined,
-                            size: 18,
-                            color: theme.colorScheme.onSecondaryContainer),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text('현재 ${pos.week}주차 식단 가이드',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                  color: theme
-                                      .colorScheme.onSecondaryContainer)),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => MealGuideScreen(
-                                  currentStageId: pos.stage.id),
-                            ),
-                          ),
-                          child: const Text('전체 보기'),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '허용: ${pos.stage.allowedFoods.take(4).join(", ")} 등',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '제한: ${pos.stage.forbiddenFoods.take(3).join(", ")} 등',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.error),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _pick,
-              icon: const Icon(Icons.photo_camera_outlined),
-              label: Text(_picked == null ? '사진 추가 (선택)' : '사진 선택됨 ✓'),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text('무엇을 드셨나요? (태그 선택)',
-                  style: theme.textTheme.labelLarge),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final tag in FoodTags.all)
-                  FilterChip(
-                    label: Text(tag.label),
-                    selected: _selected.contains(tag.id),
-                    onSelected: (sel) => setState(() {
-                      if (sel) {
-                        _selected.add(tag.id);
-                      } else {
-                        _selected.remove(tag.id);
-                      }
-                    }),
-                  ),
-              ],
-            ),
-            if (eval != null && !eval.isClean) ...[
-              const SizedBox(height: 12),
-              _RuleBanner(eval: eval),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _memo,
-              maxLength: 140,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: '메모 (선택)',
-                hintText: '간단한 메모를 남겨보세요',
-              ),
-            ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('저장'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 식단 목록 타일에 붙는 작은 위반 배지.
-class _ViolationBadge extends StatelessWidget {
-  const _ViolationBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        '단계 제한',
-        style: theme.textTheme.labelSmall
-            ?.copyWith(color: theme.colorScheme.onErrorContainer),
-      ),
-    );
-  }
-}
-
-/// 규칙 위반/주의 부드러운 안내 배너.
-class _RuleBanner extends StatelessWidget {
-  const _RuleBanner({required this.eval});
-  final RuleEvaluation eval;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isViolation = eval.isViolation;
-    final bg = isViolation
-        ? theme.colorScheme.errorContainer
-        : theme.colorScheme.secondaryContainer;
-    final fg = isViolation
-        ? theme.colorScheme.onErrorContainer
-        : theme.colorScheme.onSecondaryContainer;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(isViolation ? Icons.info_outline : Icons.lightbulb_outline,
-              color: fg, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(eval.message ?? '', style: TextStyle(color: fg)),
-          ),
-        ],
       ),
     );
   }

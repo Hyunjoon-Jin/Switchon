@@ -220,16 +220,20 @@ class SupabaseService {
 
   // --- meal_logs --------------------------------------------------------------
 
-  Future<List<MealLog>> fetchTodayMeals() async {
+  Future<List<MealLog>> fetchTodayMeals() => fetchMealsForDate(DateTime.now());
+
+  /// 특정 날짜의 식단 기록(끼니 순 → 시간 순).
+  Future<List<MealLog>> fetchMealsForDate(DateTime date) async {
     final uid = _requireUid();
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
     final rows = await _client
         .from('meal_logs')
         .select()
         .eq('user_id', uid)
         .gte('logged_at', start.toUtc().toIso8601String())
-        .order('logged_at', ascending: false);
+        .lt('logged_at', end.toUtc().toIso8601String())
+        .order('logged_at', ascending: true);
     return (rows as List)
         .map((e) => MealLog.fromMap(e as Map<String, dynamic>))
         .toList();
@@ -258,8 +262,10 @@ class SupabaseService {
   }
 
   Future<void> addMeal({
+    String? mealSlot,
     String? memo,
-    String? photoPath,
+    List<String> photoUrls = const [],
+    DateTime? loggedAt,
     List<String> foodTags = const [],
     bool? ruleViolation,
   }) async {
@@ -267,11 +273,33 @@ class SupabaseService {
     await _client.from('meal_logs').insert({
       'user_id': uid,
       'type': 'meal',
+      if (mealSlot != null) 'meal_slot': mealSlot,
       if (memo != null && memo.isNotEmpty) 'memo': memo,
-      if (photoPath != null && photoPath.isNotEmpty) 'photo_url': photoPath,
+      'photo_urls': photoUrls,
+      if (loggedAt != null) 'logged_at': loggedAt.toUtc().toIso8601String(),
       'food_tags': foodTags,
       if (ruleViolation != null) 'rule_violation': ruleViolation,
     });
+  }
+
+  /// 기존 식단 기록 수정.
+  Future<void> updateMeal(
+    String id, {
+    String? mealSlot,
+    String? memo,
+    List<String>? photoUrls,
+    DateTime? loggedAt,
+    List<String>? foodTags,
+    bool? ruleViolation,
+  }) async {
+    await _client.from('meal_logs').update({
+      'meal_slot': mealSlot,
+      'memo': (memo != null && memo.isEmpty) ? null : memo,
+      if (photoUrls != null) 'photo_urls': photoUrls,
+      if (loggedAt != null) 'logged_at': loggedAt.toUtc().toIso8601String(),
+      if (foodTags != null) 'food_tags': foodTags,
+      'rule_violation': ruleViolation,
+    }).eq('id', id);
   }
 
   Future<void> deleteMeal(String id) async {
