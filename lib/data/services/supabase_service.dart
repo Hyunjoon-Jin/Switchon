@@ -306,6 +306,45 @@ class SupabaseService {
     await _client.from('meal_logs').delete().eq('id', id);
   }
 
+  // --- AI 식단 판독 (Edge Function: analyze-meal) ------------------------------
+
+  /// 식사 사진을 Claude(비전)로 분석한다. API 키는 Edge Function 에만 있으므로
+  /// 클라이언트는 식사 id + 현재 단계 컨텍스트만 보낸다. 함수가 스토리지에서
+  /// 사진을 직접 읽어 분석하고, 결과를 meal_logs 에 기록한 뒤 JSON 을 돌려준다.
+  ///
+  /// [verdict == 'violation'] 이면 함수가 rule_violation 도 true 로 덮어쓴다(②B).
+  Future<AiAnalysis> analyzeMeal({
+    required String mealId,
+    required int week,
+    required int day,
+    required String stageTitle,
+    required List<String> allowedFoods,
+    required List<String> forbiddenFoods,
+    required String mealPlan,
+  }) async {
+    _requireUid();
+    final res = await _client.functions.invoke(
+      'analyze-meal',
+      body: {
+        'meal_id': mealId,
+        'week': week,
+        'day': day,
+        'stage_title': stageTitle,
+        'allowed_foods': allowedFoods,
+        'forbidden_foods': forbiddenFoods,
+        'meal_plan': mealPlan,
+      },
+    );
+    final data = res.data;
+    if (data is! Map) {
+      throw StateError('AI 분석 응답을 해석하지 못했어요.');
+    }
+    if (data['error'] != null) {
+      throw StateError(data['error'].toString());
+    }
+    return AiAnalysis.fromMap(Map<String, dynamic>.from(data));
+  }
+
   // --- storage (meal-photos, 사용자 폴더 격리) ----------------------------------
 
   Future<String> uploadMealPhoto(Uint8List bytes, String fileName) async {

@@ -145,6 +145,11 @@ class _MealRow extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (meal.ai != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: _MiniScore(score: meal.ai!.score),
+              ),
             if (meal.hasPhoto)
               Icon(Icons.photo_outlined,
                   size: 18, color: theme.colorScheme.onSurfaceVariant),
@@ -157,6 +162,37 @@ class _MealRow extends StatelessWidget {
             const Icon(Icons.chevron_right),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// AI 점수 미니 배지(히스토리 행용).
+class _MiniScore extends StatelessWidget {
+  const _MiniScore({required this.score});
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final Color c = score >= 80
+        ? theme.colorScheme.primary
+        : (score >= 50 ? Colors.orange.shade700 : theme.colorScheme.error);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 11, color: c),
+          const SizedBox(width: 3),
+          Text('$score',
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: c, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

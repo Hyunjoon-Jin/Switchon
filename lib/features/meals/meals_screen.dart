@@ -260,6 +260,11 @@ class _MealRow extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (meal.ai != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: _AiScoreBadge(score: meal.ai!.score),
+              ),
             if (meal.hasPhoto)
               Icon(Icons.photo_outlined,
                   size: 18, color: theme.colorScheme.onSurfaceVariant),
@@ -272,6 +277,42 @@ class _MealRow extends StatelessWidget {
             const Icon(Icons.chevron_right),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// AI 점수 배지 — 점수에 따라 색이 바뀌는 작은 칩.
+class _AiScoreBadge extends StatelessWidget {
+  const _AiScoreBadge({required this.score});
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final Color c;
+    if (score >= 80) {
+      c = theme.colorScheme.primary;
+    } else if (score >= 50) {
+      c = Colors.orange.shade700;
+    } else {
+      c = theme.colorScheme.error;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 12, color: c),
+          const SizedBox(width: 3),
+          Text('$score',
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: c, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
