@@ -61,6 +61,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
+  Future<void> _googleSignIn() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _info = null;
+    });
+    try {
+      await ref.read(authServiceProvider).signInWithGoogle();
+      // 웹에서는 구글 페이지로 이동했다가 돌아오면 게이트가 자동 전환됩니다.
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -142,6 +160,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   child: Text(_isSignUp
                       ? '이미 계정이 있어요 · 로그인'
                       : '처음이신가요? · 회원가입'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('또는',
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _googleSignIn,
+                  icon: const Icon(Icons.account_circle_outlined),
+                  label: const Text('Google로 계속하기'),
                 ),
               ],
             ),
