@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/program/diet_rules.dart';
 import '../../core/providers.dart';
 import '../../data/models/meal_log.dart';
+import '../meal_guide/meal_guide_screen.dart';
 import 'meals_controller.dart';
 
 /// 식단 기록 화면 — 셰이크 카운터 + 식사 사진/메모.
@@ -16,7 +17,23 @@ class MealsScreen extends ConsumerWidget {
     final mealsAsync = ref.watch(mealsControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('오늘의 기록')),
+      appBar: AppBar(
+        title: const Text('오늘의 기록'),
+        actions: [
+          IconButton(
+            tooltip: '식단 가이드',
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => MealGuideScreen(
+                  currentStageId:
+                      ref.read(currentStagePositionProvider)?.stage.id,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddMeal(context, ref),
         icon: const Icon(Icons.restaurant_outlined),
@@ -283,6 +300,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
     final theme = Theme.of(context);
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     final eval = _evaluate();
+    final pos = ref.watch(currentStagePositionProvider);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottom),
@@ -292,6 +310,55 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('식사 기록', style: theme.textTheme.titleLarge),
+            if (pos != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.tips_and_updates_outlined,
+                            size: 18,
+                            color: theme.colorScheme.onSecondaryContainer),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('현재 ${pos.week}주차 식단 가이드',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme
+                                      .colorScheme.onSecondaryContainer)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => MealGuideScreen(
+                                  currentStageId: pos.stage.id),
+                            ),
+                          ),
+                          child: const Text('전체 보기'),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '허용: ${pos.stage.allowedFoods.take(4).join(", ")} 등',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSecondaryContainer),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '제한: ${pos.stage.forbiddenFoods.take(3).join(", ")} 등',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.error),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _saving ? null : _pick,

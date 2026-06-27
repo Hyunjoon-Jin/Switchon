@@ -436,7 +436,8 @@ class _MealGuideCard extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => MealGuideScreen(stage: stage),
+                    builder: (_) =>
+                        MealGuideScreen(currentStageId: stage.id),
                   ),
                 ),
                 icon: const Icon(Icons.menu_book_outlined, size: 18),
