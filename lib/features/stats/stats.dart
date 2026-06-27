@@ -15,6 +15,7 @@ class StatsSummary {
     required this.totalShakes,
     required this.completedFastings,
     required this.violations,
+    required this.currentStreak,
   });
 
   /// 최근 windowDays 일의 일자별 달성률(빈 날 포함, 시간순).
@@ -32,6 +33,9 @@ class StatsSummary {
   final int totalShakes;
   final int completedFastings;
   final int violations;
+
+  /// 오늘 기준 연속 달성일(달성률 50% 이상).
+  final int currentStreak;
 
   bool get isEmpty => daysLogged == 0 && totalShakes == 0;
 }
@@ -87,6 +91,16 @@ StatsSummary computeStats({
   final completedFastings =
       fastings.where((f) => f.status == 'completed').length;
 
+  // 연속 달성일: 오늘(trend 끝)부터 거슬러 달성률 50%+ 가 이어지는 일수.
+  var currentStreak = 0;
+  for (var i = trend.length - 1; i >= 0; i--) {
+    if (trend[i].logged && trend[i].rate >= 0.5) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+
   return StatsSummary(
     trend: trend,
     daysLogged: logged,
@@ -98,6 +112,7 @@ StatsSummary computeStats({
     totalShakes: totalShakes,
     completedFastings: completedFastings,
     violations: violations,
+    currentStreak: currentStreak,
   );
 }
 

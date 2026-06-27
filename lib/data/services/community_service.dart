@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/community.dart';
+import '../models/public_stat.dart';
 
 /// 커뮤니티 데이터 접근 (게시글·응원·댓글·사진·닉네임·디바이스 토큰).
 class CommunityService {
@@ -81,6 +82,89 @@ class CommunityService {
 
   Future<void> deletePost(String id) async {
     await _client.from('community_posts').delete().eq('id', id);
+  }
+
+  /// 성과 카드 게시글 작성.
+  Future<void> createAchievementPost({
+    required int week,
+    required String authorName,
+    required String title,
+    required List<String> lines,
+    String content = '성과를 공유했어요 🎉',
+  }) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('로그인이 필요합니다.');
+    await _client.from('community_posts').insert({
+      'user_id': uid,
+      'author_name': authorName,
+      'group_week': week,
+      'content': content,
+      'kind': 'achievement',
+      'achievement': {'title': title, 'lines': lines},
+    });
+  }
+
+  /// 특정 사용자의 게시글(프로필용).
+  Future<List<CommunityPost>> fetchUserPosts(String userId) async {
+    final rows = await _client
+        .from('community_posts')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List)
+        .map((e) => CommunityPost.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // --- 공개 통계 (opt-in) ------------------------------------------------------
+
+  Future<PublicStat?> fetchPublicStats(String userId) async {
+    final row = await _client
+        .from('public_stats')
+        .select()
+        .eq('user_id', userId)
+        .maybeSingle();
+    if (row == null) return null;
+    return PublicStat.fromMap(row);
+  }
+
+  /// 내 공개 통계 upsert (요약 수치 + 공개 여부).
+  Future<void> upsertMyPublicStats({
+    String? displayName,
+    int? currentWeek,
+    required double avgCompletion,
+    required int fastingCompleted,
+    required int currentStreak,
+    required bool isPublic,
+  }) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('로그인이 필요합니다.');
+    await _client.from('public_stats').upsert({
+      'user_id': uid,
+      'display_name': displayName,
+      'current_week': currentWeek,
+      'avg_completion': avgCompletion,
+      'fasting_completed': fastingCompleted,
+      'current_streak': currentStreak,
+      'is_public': isPublic,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  /// 같은 주차 그룹 리더보드(공개된 사용자만, 달성률·연속일 순).
+  Future<List<PublicStat>> fetchLeaderboard(int week) async {
+    final rows = await _client
+        .from('public_stats')
+        .select()
+        .eq('is_public', true)
+        .eq('current_week', week)
+        .order('avg_completion', ascending: false)
+        .order('current_streak', ascending: false)
+        .limit(50);
+    return (rows as List)
+        .map((e) => PublicStat.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   // --- 응원 -------------------------------------------------------------------

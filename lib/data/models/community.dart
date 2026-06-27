@@ -8,6 +8,8 @@ class CommunityPost {
     required this.content,
     required this.createdAt,
     this.photoUrl,
+    this.kind = 'normal',
+    this.achievement,
   });
 
   final String id;
@@ -17,8 +19,18 @@ class CommunityPost {
   final String content;
   final DateTime createdAt;
   final String? photoUrl;
+  final String kind; // normal | achievement
+  final Map<String, dynamic>? achievement; // {title, lines:[...]}
 
   bool get hasPhoto => (photoUrl ?? '').isNotEmpty;
+  bool get isAchievement => kind == 'achievement';
+
+  String get achievementTitle =>
+      (achievement?['title'] as String?) ?? '성과 달성!';
+  List<String> get achievementLines =>
+      ((achievement?['lines'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList();
 
   factory CommunityPost.fromMap(Map<String, dynamic> m) {
     return CommunityPost(
@@ -28,6 +40,8 @@ class CommunityPost {
       groupWeek: m['group_week'] as int,
       content: m['content'] as String,
       photoUrl: m['photo_url'] as String?,
+      kind: (m['kind'] as String?) ?? 'normal',
+      achievement: m['achievement'] as Map<String, dynamic>?,
       createdAt: DateTime.parse(m['created_at'] as String),
     );
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers.dart';
+import '../community/community_controller.dart';
+import '../community/nickname.dart';
 import 'stats.dart';
 import 'stats_controller.dart';
 
@@ -32,6 +35,12 @@ class StatsScreen extends ConsumerWidget {
                 )
               else ...[
                 _SummaryRow(s: s),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: () => _shareAchievement(context, ref, s),
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: const Text('성과 자랑하기'),
+                ),
                 const SizedBox(height: 20),
                 _TrendCard(trend: s.trend),
                 const SizedBox(height: 16),
@@ -44,6 +53,41 @@ class StatsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _shareAchievement(
+      BuildContext context, WidgetRef ref, StatsSummary s) async {
+    final name = await ensureNickname(context, ref);
+    if (name == null || !context.mounted) return;
+    final week = ref.read(currentStagePositionProvider)?.week ?? 1;
+    final title = s.currentStreak >= 3
+        ? '${s.currentStreak}일 연속 달성 중! 🔥'
+        : '스위치온 $week주차 진행 중!';
+    final lines = <String>[
+      '평균 달성률 ${(s.avgCompletion * 100).round()}%',
+      '단식 ${s.completedFastings}회 완주',
+      '연속 ${s.currentStreak}일',
+    ];
+    try {
+      await ref.read(communityServiceProvider).createAchievementPost(
+            week: week,
+            authorName: name,
+            title: title,
+            lines: lines,
+          );
+      ref.invalidate(feedProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('성과를 커뮤니티에 공유했어요 🎉')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('공유에 실패했어요. 다시 시도해 주세요.')),
+        );
+      }
+    }
   }
 }
 

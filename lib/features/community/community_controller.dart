@@ -2,11 +2,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../data/models/community.dart';
+import '../../data/models/public_stat.dart';
 
 /// 사용자의 현재 주차 그룹 번호(피드 대상). 시작 전이면 1주차로 폴백.
 final feedWeekProvider = Provider<int>((ref) {
   final pos = ref.watch(currentStagePositionProvider);
   return pos?.week ?? 1;
+});
+
+/// 같은 주차 그룹 리더보드.
+final leaderboardProvider =
+    FutureProvider.family<List<PublicStat>, int>((ref, week) {
+  ref.watch(authStateProvider);
+  return ref.watch(communityServiceProvider).fetchLeaderboard(week);
+});
+
+/// 특정 사용자의 공개 통계.
+final publicStatProvider =
+    FutureProvider.family<PublicStat?, String>((ref, userId) {
+  ref.watch(authStateProvider);
+  return ref.watch(communityServiceProvider).fetchPublicStats(userId);
+});
+
+/// 특정 사용자의 게시글.
+final userPostsProvider =
+    FutureProvider.family<List<CommunityPost>, String>((ref, userId) {
+  ref.watch(authStateProvider);
+  return ref.watch(communityServiceProvider).fetchUserPosts(userId);
 });
 
 /// 현재 주차 그룹 피드.

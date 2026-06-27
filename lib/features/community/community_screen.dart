@@ -4,63 +4,181 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/providers.dart';
 import '../../data/models/community.dart';
+import '../social/profile_screen.dart';
 import 'community_controller.dart';
 import 'nickname.dart';
 import 'post_detail_screen.dart';
 
-/// 커뮤니티 — 같은 주차 사용자들의 피드(인증샷·후기·응원).
-class CommunityScreen extends ConsumerWidget {
+/// 커뮤니티 — 같은 주차 그룹 피드 + 랭킹.
+class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CommunityScreen> createState() => _CommunityScreenState();
+}
+
+class _CommunityScreenState extends ConsumerState<CommunityScreen> {
+  int _tab = 0; // 0 피드 / 1 랭킹
+
+  @override
+  Widget build(BuildContext context) {
     final week = ref.watch(feedWeekProvider);
-    final feedAsync = ref.watch(feedProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('$week주차 그룹')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _compose(context, ref, week),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('글쓰기'),
+      appBar: AppBar(
+        title: Text('$week주차 그룹'),
+        actions: [
+          IconButton(
+            tooltip: '내 프로필',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              final me = ref.read(supabaseServiceProvider).currentUser?.id;
+              final name = ref.read(profileProvider).valueOrNull?.displayName;
+              if (me == null) return;
+              Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => ProfileScreen(userId: me, displayName: name),
+              ));
+            },
+          ),
+        ],
       ),
-      body: feedAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
-        data: (items) => RefreshIndicator(
-          onRefresh: () => ref.read(feedProvider.notifier).refresh(),
-          child: items.isEmpty
-              ? ListView(
-                  children: const [
-                    SizedBox(height: 120),
-                    Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text(
-                          '아직 글이 없어요.\n같은 주차 동료들에게 첫 인사를 건네보세요!',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: items.length,
-                  itemBuilder: (_, i) => _PostCard(item: items[i]),
-                ),
-        ),
+      floatingActionButton: _tab == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => _compose(context, week),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('글쓰기'),
+            )
+          : null,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(value: 0, label: Text('피드'), icon: Icon(Icons.dynamic_feed_outlined)),
+                ButtonSegment(value: 1, label: Text('랭킹'), icon: Icon(Icons.leaderboard_outlined)),
+              ],
+              selected: {_tab},
+              onSelectionChanged: (s) => setState(() => _tab = s.first),
+            ),
+          ),
+          Expanded(
+            child: _tab == 0 ? const _FeedView() : _LeaderboardView(week: week),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _compose(BuildContext context, WidgetRef ref, int week) async {
+  Future<void> _compose(BuildContext context, int week) async {
     final name = await ensureNickname(context, ref);
     if (name == null || !context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _ComposeSheet(week: week, authorName: name),
+    );
+  }
+}
+
+class _FeedView extends ConsumerWidget {
+  const _FeedView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(feedProvider);
+    return feedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('$e')),
+      data: (items) => RefreshIndicator(
+        onRefresh: () => ref.read(feedProvider.notifier).refresh(),
+        child: items.isEmpty
+            ? ListView(
+                children: const [
+                  SizedBox(height: 120),
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        '아직 글이 없어요.\n같은 주차 동료들에게 첫 인사를 건네보세요!',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                itemBuilder: (_, i) => _PostCard(item: items[i]),
+              ),
+      ),
+    );
+  }
+}
+
+class _LeaderboardView extends ConsumerWidget {
+  const _LeaderboardView({required this.week});
+  final int week;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final boardAsync = ref.watch(leaderboardProvider(week));
+    return boardAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('$e')),
+      data: (rows) => RefreshIndicator(
+        onRefresh: () async => ref.invalidate(leaderboardProvider(week)),
+        child: rows.isEmpty
+            ? ListView(
+                children: const [
+                  SizedBox(height: 100),
+                  Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      '아직 공개된 랭킹이 없어요.\n프로필에서 "통계 공개"를 켜면 랭킹에 참여해요!',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: rows.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (_, i) {
+                  final s = rows[i];
+                  final rank = i + 1;
+                  return Card(
+                    child: ListTile(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ProfileScreen(
+                              userId: s.userId, displayName: s.displayName),
+                        ),
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: rank <= 3
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.surfaceContainerHighest,
+                        child: Text('$rank',
+                            style: TextStyle(
+                                color: rank <= 3
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(s.displayName ?? '익명'),
+                      subtitle: Text('연속 ${s.currentStreak}일 · 단식 ${s.fastingCompleted}회'),
+                      trailing: Text('${s.avgPercent}%',
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(color: theme.colorScheme.primary)),
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }
@@ -88,16 +206,30 @@ class _PostCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    child: Text(
-                      post.authorName.characters.first,
-                      style: const TextStyle(fontSize: 14),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ProfileScreen(
+                            userId: post.userId,
+                            displayName: post.authorName),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          child: Text(
+                            post.authorName.characters.first,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(post.authorName,
+                            style: theme.textTheme.titleSmall),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Text(post.authorName,
-                      style: theme.textTheme.titleSmall),
                   const Spacer(),
                   Text(_ago(post.createdAt),
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -105,7 +237,10 @@ class _PostCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(post.content),
+              if (post.isAchievement)
+                _AchievementBlock(post: post)
+              else
+                Text(post.content),
               if (post.hasPhoto) ...[
                 const SizedBox(height: 10),
                 ClipRRect(
@@ -154,6 +289,51 @@ class _PostCard extends ConsumerWidget {
     if (d.inHours < 1) return '${d.inMinutes}분 전';
     if (d.inDays < 1) return '${d.inHours}시간 전';
     return '${d.inDays}일 전';
+  }
+}
+
+/// 성과 카드 블록(피드 내).
+class _AchievementBlock extends StatelessWidget {
+  const _AchievementBlock({required this.post});
+  final CommunityPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.emoji_events,
+                  color: theme.colorScheme.onPrimaryContainer),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(post.achievementTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final line in post.achievementLines)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text('· $line',
+                  style: TextStyle(
+                      color: theme.colorScheme.onPrimaryContainer)),
+            ),
+        ],
+      ),
+    );
   }
 }
 
