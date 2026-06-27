@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../data/models/daily_log.dart';
 import '../../data/models/meal_log.dart';
+import '../home/daily_log_controller.dart';
 import '../meal_guide/meal_guide_screen.dart';
 import 'history_screen.dart';
 import 'meal_detail_screen.dart';
@@ -63,6 +65,8 @@ class MealsScreen extends ConsumerWidget {
                 onAdd: () =>
                     ref.read(mealsControllerProvider.notifier).addShake(),
               ),
+              const SizedBox(height: 12),
+              const _WaterCard(),
               const SizedBox(height: 20),
               Text('식사 (${meals.length})',
                   style: Theme.of(context).textTheme.titleMedium),
@@ -122,6 +126,93 @@ class _ShakeCounter extends StatelessWidget {
               onPressed: onAdd,
               icon: const Icon(Icons.add),
               label: const Text('1회'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 물 빠른 기록 카드 — 홈 체크리스트의 물과 같은 데이터(자동 동기화).
+class _WaterCard extends ConsumerWidget {
+  const _WaterCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final logAsync = ref.watch(dailyLogControllerProvider);
+    final log = logAsync.valueOrNull ?? DailyLog.empty(DateTime.now());
+    final ratio =
+        (log.waterMl / DailyLog.waterTargetMl).clamp(0.0, 1.0).toDouble();
+
+    Future<void> add(int ml) async {
+      try {
+        await ref.read(dailyLogControllerProvider.notifier).addWater(ml);
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('저장에 실패했어요. 다시 시도해 주세요.')),
+          );
+        }
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  log.waterDone
+                      ? Icons.water_drop
+                      : Icons.water_drop_outlined,
+                  size: 32,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('물', style: theme.textTheme.titleMedium),
+                      Text('${log.waterMl} / ${DailyLog.waterTargetMl}ml',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+                if (log.waterDone)
+                  Icon(Icons.check_circle, color: theme.colorScheme.primary),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(value: ratio, minHeight: 6),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: () => add(250),
+                  child: const Text('+250ml'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () => add(500),
+                  child: const Text('+500ml'),
+                ),
+                const Spacer(),
+                if (log.waterMl > 0)
+                  TextButton(
+                    onPressed: () => add(-log.waterMl),
+                    child: const Text('초기화'),
+                  ),
+              ],
             ),
           ],
         ),
