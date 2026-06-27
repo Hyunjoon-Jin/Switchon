@@ -129,6 +129,10 @@ class _ShakeCounter extends StatelessWidget {
               ),
             ),
             FilledButton.tonalIcon(
+              // 전역 테마의 '가로 꽉 채움'을 무력화해 Row 안에서 깨지지 않게.
+              style: const ButtonStyle(
+                minimumSize: WidgetStatePropertyAll(Size(0, 40)),
+              ),
               onPressed: onAdd,
               icon: const Icon(Icons.add),
               label: const Text('1회'),
