@@ -102,11 +102,17 @@ class _Today extends ConsumerWidget {
                 context,
                 () => ref.read(dailyLogControllerProvider.notifier).addWater(ml),
               ),
-              onSetSleep: (h) => _guard(
+              onSetSleepStart: (m) => _guard(
                 context,
                 () => ref
                     .read(dailyLogControllerProvider.notifier)
-                    .setSleepHours(h),
+                    .setSleepTimes(startMinutes: m),
+              ),
+              onSetSleepEnd: (m) => _guard(
+                context,
+                () => ref
+                    .read(dailyLogControllerProvider.notifier)
+                    .setSleepTimes(endMinutes: m),
               ),
               onToggleFasting: () => _guard(
                 context,

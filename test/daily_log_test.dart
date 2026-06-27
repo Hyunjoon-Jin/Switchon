@@ -29,4 +29,20 @@ void main() {
     final log = DailyLog(logDate: date, sleepHours: 5.5);
     expect(log.sleepDone, false);
   });
+
+  group('수면 시각 → 시간 계산', () {
+    test('같은 날 (07:00 - 06:00 안 넘김 아님)', () {
+      // 23:30 잠들어 07:00 기상 → 7.5시간 (자정 넘김)
+      expect(DailyLog.durationHours(23 * 60 + 30, 7 * 60), 7.5);
+    });
+    test('자정 안 넘김 (01:00 → 08:30 = 7.5h)', () {
+      expect(DailyLog.durationHours(60, 8 * 60 + 30), 7.5);
+    });
+    test('자정 정각 넘김 (22:00 → 06:00 = 8h)', () {
+      expect(DailyLog.durationHours(22 * 60, 6 * 60), 8.0);
+    });
+    test('같은 시각이면 24시간으로 간주(경계)', () {
+      expect(DailyLog.durationHours(23 * 60, 23 * 60), 24.0);
+    });
+  });
 }

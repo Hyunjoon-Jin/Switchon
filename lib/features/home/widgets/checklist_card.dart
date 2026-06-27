@@ -8,14 +8,16 @@ class ChecklistCard extends StatelessWidget {
     super.key,
     required this.log,
     required this.onAddWater,
-    required this.onSetSleep,
+    required this.onSetSleepStart,
+    required this.onSetSleepEnd,
     required this.onToggleFasting,
     required this.onToggleExercise,
   });
 
   final DailyLog log;
   final ValueChanged<int> onAddWater;
-  final ValueChanged<double> onSetSleep;
+  final ValueChanged<int> onSetSleepStart; // 잠든 시각(분)
+  final ValueChanged<int> onSetSleepEnd; // 일어난 시각(분)
   final VoidCallback onToggleFasting;
   final VoidCallback onToggleExercise;
 
@@ -46,7 +48,11 @@ class ChecklistCard extends StatelessWidget {
             const Divider(height: 28),
 
             // 수면
-            _SleepRow(log: log, onSetSleep: onSetSleep),
+            _SleepRow(
+              log: log,
+              onSetStart: onSetSleepStart,
+              onSetEnd: onSetSleepEnd,
+            ),
             const Divider(height: 28),
 
             // 단식
@@ -161,15 +167,48 @@ class _WaterRow extends StatelessWidget {
   }
 }
 
+/// 수면: 잠든 시각·일어난 시각을 고르면 자동으로 수면 시간 계산(자정 넘김 포함).
 class _SleepRow extends StatelessWidget {
-  const _SleepRow({required this.log, required this.onSetSleep});
+  const _SleepRow({
+    required this.log,
+    required this.onSetStart,
+    required this.onSetEnd,
+  });
   final DailyLog log;
-  final ValueChanged<double> onSetSleep;
+  final ValueChanged<int> onSetStart;
+  final ValueChanged<int> onSetEnd;
+
+  String _fmt(int minutes) {
+    final h = (minutes ~/ 60).toString().padLeft(2, '0');
+    final m = (minutes % 60).toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  String _durationLabel() {
+    final h = log.sleepHours;
+    if (!log.hasSleepTimes || h == null) return '';
+    final hours = h.floor();
+    final mins = ((h - hours) * 60).round();
+    return mins == 0 ? '총 $hours시간' : '총 $hours시간 $mins분';
+  }
+
+  Future<void> _pick(
+    BuildContext context,
+    int? currentMinutes,
+    ValueChanged<int> onPicked,
+    int fallback,
+  ) async {
+    final init = currentMinutes ?? fallback;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: init ~/ 60, minute: init % 60),
+    );
+    if (picked != null) onPicked(picked.hour * 60 + picked.minute);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const options = [5.0, 6.0, 7.0, 8.0, 9.0];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -185,19 +224,86 @@ class _SleepRow extends StatelessWidget {
               Icon(Icons.check_circle, color: theme.colorScheme.primary),
           ],
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
+        const SizedBox(height: 10),
+        Row(
           children: [
-            for (final h in options)
-              ChoiceChip(
-                label: Text(h >= 9 ? '9h+' : '${h.toInt()}h'),
-                selected: log.sleepHours == h,
-                onSelected: (_) => onSetSleep(h),
+            Expanded(
+              child: _TimeButton(
+                label: '잠든 시각',
+                value: log.sleepStartMinutes == null
+                    ? null
+                    : _fmt(log.sleepStartMinutes!),
+                onTap: () => _pick(
+                    context, log.sleepStartMinutes, onSetStart, 23 * 60),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Icon(Icons.arrow_forward, size: 18),
+            ),
+            Expanded(
+              child: _TimeButton(
+                label: '일어난 시각',
+                value: log.sleepEndMinutes == null
+                    ? null
+                    : _fmt(log.sleepEndMinutes!),
+                onTap: () =>
+                    _pick(context, log.sleepEndMinutes, onSetEnd, 7 * 60),
+              ),
+            ),
           ],
         ),
+        if (log.hasSleepTimes) ...[
+          const SizedBox(height: 8),
+          Text(
+            _durationLabel(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _TimeButton extends StatelessWidget {
+  const _TimeButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.centerLeft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 2),
+          Text(
+            value ?? '선택',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: value == null
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
