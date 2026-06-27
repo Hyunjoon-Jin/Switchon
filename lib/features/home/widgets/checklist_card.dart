@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/daily_log.dart';
 
+/// 가로로 나란히 두는 물 버튼용 — 전역 테마의 '가로 꽉 채움'을 무력화(폭 제한).
+final ButtonStyle _waterBtnStyle = OutlinedButton.styleFrom(
+  minimumSize: const Size(0, 40),
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+);
+
 /// 일일 체크리스트 카드 — 물·수면·단식·운동 + 달성률 시각화.
 class ChecklistCard extends StatelessWidget {
   const ChecklistCard({
@@ -146,11 +152,13 @@ class _WaterRow extends StatelessWidget {
         Row(
           children: [
             OutlinedButton(
+              style: _waterBtnStyle,
               onPressed: () => onAddWater(250),
               child: const Text('+250ml'),
             ),
             const SizedBox(width: 8),
             OutlinedButton(
+              style: _waterBtnStyle,
               onPressed: () => onAddWater(500),
               child: const Text('+500ml'),
             ),

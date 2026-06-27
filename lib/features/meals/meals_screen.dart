@@ -11,6 +11,12 @@ import 'meal_detail_screen.dart';
 import 'meal_editor_screen.dart';
 import 'meals_controller.dart';
 
+/// 가로로 나란히 두는 물 버튼용 — 전역 테마의 '가로 꽉 채움'을 무력화(폭 제한).
+final ButtonStyle _waterBtnStyle = OutlinedButton.styleFrom(
+  minimumSize: const Size(0, 40),
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+);
+
 /// 오늘의 식단 기록 — 셰이크 카운터 + 끼니별 식사 + 상세/히스토리.
 class MealsScreen extends ConsumerWidget {
   const MealsScreen({super.key});
@@ -198,11 +204,13 @@ class _WaterCard extends ConsumerWidget {
             Row(
               children: [
                 OutlinedButton(
+                  style: _waterBtnStyle,
                   onPressed: () => add(250),
                   child: const Text('+250ml'),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
+                  style: _waterBtnStyle,
                   onPressed: () => add(500),
                   child: const Text('+500ml'),
                 ),
