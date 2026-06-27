@@ -9,6 +9,7 @@ class DailyLog {
     this.sleepEndMinutes,
     this.fastingDone = false,
     this.exerciseDone = false,
+    this.missionDone = const [],
   });
 
   final String? id;
@@ -19,6 +20,7 @@ class DailyLog {
   final int? sleepEndMinutes; // 일어난 시각
   final bool fastingDone;
   final bool exerciseDone;
+  final List<String> missionDone; // 체크한 미션 라벨
 
   /// 목표값
   static const int waterTargetMl = 2000;
@@ -74,6 +76,9 @@ class DailyLog {
       sleepEndMinutes: _parseTime(map['sleep_end']),
       fastingDone: (map['fasting_done'] as bool?) ?? false,
       exerciseDone: (map['exercise_done'] as bool?) ?? false,
+      missionDone: ((map['mission_done'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toList(),
     );
   }
 
@@ -87,6 +92,7 @@ class DailyLog {
         'sleep_end': _fmtTime(sleepEndMinutes),
         'fasting_done': fastingDone,
         'exercise_done': exerciseDone,
+        'mission_done': missionDone,
         'completion_rate': completionRate,
       };
 
@@ -97,6 +103,7 @@ class DailyLog {
     int? sleepEndMinutes,
     bool? fastingDone,
     bool? exerciseDone,
+    List<String>? missionDone,
   }) {
     return DailyLog(
       id: id,
@@ -107,6 +114,7 @@ class DailyLog {
       sleepEndMinutes: sleepEndMinutes ?? this.sleepEndMinutes,
       fastingDone: fastingDone ?? this.fastingDone,
       exerciseDone: exerciseDone ?? this.exerciseDone,
+      missionDone: missionDone ?? this.missionDone,
     );
   }
 }

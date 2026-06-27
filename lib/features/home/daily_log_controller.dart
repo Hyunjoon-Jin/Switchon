@@ -53,6 +53,13 @@ class DailyLogController extends AsyncNotifier<DailyLog> {
   Future<void> toggleFasting() =>
       _mutate((c) => c.copyWith(fastingDone: !c.fastingDone));
 
+  /// 오늘의 미션 항목(라벨) 체크 토글.
+  Future<void> toggleMission(String label) => _mutate((c) {
+        final set = c.missionDone.toSet();
+        if (!set.remove(label)) set.add(label);
+        return c.copyWith(missionDone: set.toList());
+      });
+
   Future<void> toggleExercise() =>
       _mutate((c) => c.copyWith(exerciseDone: !c.exerciseDone));
 }
