@@ -12,8 +12,9 @@ class AuthService {
   Future<bool> signInWithGoogle() {
     return _client.auth.signInWithOAuth(
       OAuthProvider.google,
-      // 웹은 현재 origin 으로 자동 복귀. 네이티브는 딥링크 사용(추후).
-      redirectTo: kIsWeb ? null : 'io.supabase.switchon://login-callback',
+      // 웹은 현재 주소(origin)로 복귀 → Site URL 설정과 무관하게 앱으로 돌아옴.
+      // 단, 이 주소가 Supabase Redirect URLs 허용목록에 있어야 함.
+      redirectTo: kIsWeb ? Uri.base.origin : 'io.supabase.switchon://login-callback',
     );
   }
 
