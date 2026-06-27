@@ -18,14 +18,15 @@ void main() {
       expect(SwitchOnProgram.stageFor(2, 7).id, 'w2');
     });
 
-    test('3~4주차는 동일 단계로 포괄', () {
-      expect(SwitchOnProgram.stageFor(3, 1).id, 'w3_4');
-      expect(SwitchOnProgram.stageFor(4, 5).id, 'w3_4');
+    test('3주차와 4주차는 별도 단계', () {
+      expect(SwitchOnProgram.stageFor(3, 1).id, 'w3');
+      expect(SwitchOnProgram.stageFor(4, 5).id, 'w4');
     });
 
-    test('모든 단계는 미션 항목을 가진다', () {
+    test('모든 단계는 미션·끼니 가이드를 가진다', () {
       for (final s in SwitchOnProgram.stages) {
         expect(s.mission, isNotEmpty, reason: '${s.id} 미션 비어있음');
+        expect(s.mealPlan.shake, isNotEmpty, reason: '${s.id} 셰이크 안내 없음');
       }
     });
   });

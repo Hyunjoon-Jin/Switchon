@@ -40,14 +40,24 @@ void main() {
     });
   });
 
-  group('3~4주차', () {
-    test('음주는 위반', () {
-      expect(eval('w3_4', 3, ['alcohol']).isViolation, true);
+  group('3주차', () {
+    test('음주는 위반, 과일도 아직 위반', () {
+      expect(eval('w3', 3, ['alcohol']).isViolation, true);
+      expect(eval('w3', 3, ['fruit']).isViolation, true);
+    });
+  });
+
+  group('4주차', () {
+    test('과일은 허용(주의), 밀가루는 위반', () {
+      final r = eval('w4', 4, ['fruit', 'refined_carbs']);
+      expect(r.violations.map((t) => t.id), contains('refined_carbs'));
+      expect(r.violations.map((t) => t.id), isNot(contains('fruit')));
+      expect(r.cautions.map((t) => t.id), contains('fruit'));
     });
   });
 
   test('위반 메시지에 주차와 식품명이 포함', () {
-    final r = eval('w3_4', 3, ['refined_carbs']);
+    final r = eval('w3', 3, ['refined_carbs']);
     expect(r.message, contains('3주차'));
     expect(r.message, contains('밀가루'));
   });

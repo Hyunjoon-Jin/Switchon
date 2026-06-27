@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/program/stage_engine.dart';
+import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
+import '../meal_guide/meal_guide_screen.dart';
 import '../reminders/reminders_screen.dart';
 import 'daily_log_controller.dart';
 import 'widgets/checklist_card.dart';
@@ -132,7 +134,7 @@ class _Today extends ConsumerWidget {
 
           MissionCard(mission: stage.mission),
           const SizedBox(height: 16),
-          _FoodGuide(allowed: stage.allowedFoods, forbidden: stage.forbiddenFoods),
+          _MealGuideCard(stage: stage),
 
           if (stage.notes != null) ...[
             const SizedBox(height: 16),
@@ -379,55 +381,71 @@ class _NoteCard extends StatelessWidget {
   }
 }
 
-class _FoodGuide extends StatelessWidget {
-  const _FoodGuide({required this.allowed, required this.forbidden});
-  final List<String> allowed;
-  final List<String> forbidden;
+/// 홈의 식단 요약 카드 — 끼니별 한 줄 + 전체 가이드로 이동.
+class _MealGuideCard extends StatelessWidget {
+  const _MealGuideCard({required this.stage});
+  final StageRule stage;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mp = stage.mealPlan;
+    final rows = <(IconData, String, String?)>[
+      (Icons.local_drink_outlined, '셰이크', mp.shake),
+      (Icons.lunch_dining_outlined, '점심', mp.lunch),
+      (Icons.dinner_dining_outlined, '저녁', mp.dinner),
+    ];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('이 단계의 식품 가이드', style: theme.textTheme.titleMedium),
+            Row(
+              children: [
+                Icon(Icons.restaurant_menu, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text('오늘의 식단', style: theme.textTheme.titleMedium),
+              ],
+            ),
             const SizedBox(height: 12),
-            _chips(context, '허용', allowed, theme.colorScheme.primary),
-            const SizedBox(height: 12),
-            _chips(context, '주의·제한', forbidden, theme.colorScheme.error),
+            for (final r in rows)
+              if (r.$3 != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(r.$1, size: 18, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 40,
+                        child:
+                            Text(r.$2, style: theme.textTheme.labelMedium),
+                      ),
+                      Expanded(
+                        child: Text(r.$3!,
+                            style: theme.textTheme.bodyMedium),
+                      ),
+                    ],
+                  ),
+                ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MealGuideScreen(stage: stage),
+                  ),
+                ),
+                icon: const Icon(Icons.menu_book_outlined, size: 18),
+                label: const Text('식단 가이드 · 예시 보기'),
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _chips(
-      BuildContext context, String label, List<String> items, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: color)),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final i in items)
-              Chip(
-                label: Text(i),
-                visualDensity: VisualDensity.compact,
-                side: BorderSide(color: color.withOpacity(0.4)),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

@@ -18,8 +18,13 @@ class FoodTags {
   static const vegetable = FoodTag('vegetable', '채소');
   static const shake = FoodTag('shake', '단백질 셰이크');
   static const egg = FoodTag('egg', '계란');
+  static const tofu = FoodTag('tofu', '두부');
+  static const yogurt = FoodTag('yogurt', '무가당 요거트');
+  static const seaweed = FoodTag('seaweed', '해조류');
+  static const mushroom = FoodTag('mushroom', '버섯');
+  static const avocado = FoodTag('avocado', '아보카도');
   static const nuts = FoodTag('nuts', '견과류');
-  static const cheese = FoodTag('cheese', '치즈');
+  static const cheese = FoodTag('cheese', '치즈·우유');
   static const blackCoffee = FoodTag('black_coffee', '블랙커피');
   static const rice = FoodTag('rice', '밥·곡물');
   static const refinedCarbs = FoodTag('refined_carbs', '밀가루·면·빵');
@@ -34,6 +39,11 @@ class FoodTags {
     vegetable,
     shake,
     egg,
+    tofu,
+    yogurt,
+    seaweed,
+    mushroom,
+    avocado,
     nuts,
     cheese,
     blackCoffee,
@@ -103,29 +113,34 @@ class DietRules {
 
   /// stage.id → 규칙셋
   static const Map<String, StageDietRule> _byStage = {
-    // 1주차 1~3일: 셰이크·블랙커피만 허용, 나머지는 위반.
+    // 1주차 1~3일: 셰이크·채소·두부·요거트만 허용, 나머지는 위반.
     'w1_shake_only': StageDietRule(
-      allowOnly: {'shake', 'black_coffee'},
+      allowOnly: {'shake', 'vegetable', 'tofu', 'yogurt'},
     ),
-    // 1주차 4~7일: 저탄수 식사 추가. 견과류·치즈는 아직 권장 X(주의).
+    // 1주차 4~7일: 잡곡밥 반공기·생선·닭·해조류 추가. 견과류·치즈·과일은 아직(주의/금지).
     'w1_lunch_added': StageDietRule(
       forbidden: {
         'refined_carbs',
         'sugar',
-        'rice',
+        'fruit',
         'processed',
         'fried',
         'alcohol',
       },
-      caution: {'fruit', 'nuts', 'cheese'},
+      caution: {'nuts', 'cheese', 'avocado'},
     ),
-    // 2주차: 견과류·치즈 허용. 정제탄수·당류·가공·튀김·음주 제한, 곡물·과일 주의.
+    // 2주차: 견과류·치즈·블랙커피 허용. 과일은 아직 금지, 곡물은 소량(주의).
     'w2': StageDietRule(
-      forbidden: {'refined_carbs', 'sugar', 'processed', 'fried', 'alcohol'},
-      caution: {'rice', 'fruit'},
+      forbidden: {'refined_carbs', 'sugar', 'fruit', 'processed', 'fried', 'alcohol'},
+      caution: {'rice'},
     ),
-    // 3~4주차: 본격 감량기. 2주차와 동일 기조.
-    'w3_4': StageDietRule(
+    // 3주차: 본격 감량기. 과일 금지 유지, 곡물 소량 주의.
+    'w3': StageDietRule(
+      forbidden: {'refined_carbs', 'sugar', 'fruit', 'processed', 'fried', 'alcohol'},
+      caution: {'rice'},
+    ),
+    // 4주차: 과일 허용(하루 1개 → 주의). 정제탄수·당류·가공·튀김·음주 금지.
+    'w4': StageDietRule(
       forbidden: {'refined_carbs', 'sugar', 'processed', 'fried', 'alcohol'},
       caution: {'rice', 'fruit'},
     ),
