@@ -104,7 +104,7 @@ class MealLog {
   factory MealLog.fromMap(Map<String, dynamic> map) {
     return MealLog(
       id: map['id'] as String,
-      loggedAt: DateTime.parse(map['logged_at'] as String),
+      loggedAt: DateTime.parse(map['logged_at'] as String).toLocal(),
       type: map['type'] as String,
       shakeCount: (map['shake_count'] as int?) ?? 0,
       mealSlot: map['meal_slot'] as String?,

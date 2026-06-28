@@ -38,11 +38,11 @@ class FastingSession {
   factory FastingSession.fromMap(Map<String, dynamic> map) {
     return FastingSession(
       id: map['id'] as String,
-      startedAt: DateTime.parse(map['started_at'] as String),
+      startedAt: DateTime.parse(map['started_at'] as String).toLocal(),
       targetHours: map['target_hours'] as int,
       endedAt: map['ended_at'] == null
           ? null
-          : DateTime.parse(map['ended_at'] as String),
+          : DateTime.parse(map['ended_at'] as String).toLocal(),
       status: (map['status'] as String?) ?? 'active',
     );
   }
