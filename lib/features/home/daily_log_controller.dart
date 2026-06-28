@@ -60,6 +60,12 @@ class DailyLogController extends AsyncNotifier<DailyLog> {
         return c.copyWith(missionDone: set.toList());
       });
 
+  /// 자동 체크된 미션을 저장합니다 (이미 체크된 경우 무시).
+  Future<void> setMissionChecked(String label) => _mutate((c) {
+        final set = c.missionDone.toSet()..add(label);
+        return c.copyWith(missionDone: set.toList());
+      });
+
   Future<void> toggleExercise() =>
       _mutate((c) => c.copyWith(exerciseDone: !c.exerciseDone));
 }

@@ -8,6 +8,9 @@ import '../data/services/supabase_service.dart';
 import '../services/notification_service.dart';
 import 'program/stage_engine.dart';
 
+/// 이번 주(7일) 운동 일수 + 24h 단식 완료 횟수.
+typedef WeeklyStats = ({int exerciseCount, int fasting24Count});
+
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
 });
@@ -52,6 +55,24 @@ final currentStagePositionProvider = Provider<StagePosition?>((ref) {
     status: profile.status,
     pausedAt: profile.pausedAt,
     today: DateTime.now(),
+  );
+});
+
+/// 이번 주 운동/단식 통계 — 미션 자동 체크에 사용.
+final weeklyStatsProvider = FutureProvider<WeeklyStats>((ref) async {
+  ref.watch(authStateProvider);
+  final service = ref.watch(supabaseServiceProvider);
+  final logs = await service.fetchRecentDailyLogs(7);
+  final fastings = await service.fetchAllFastings();
+  final cutoff = DateTime.now().subtract(const Duration(days: 7));
+  return (
+    exerciseCount: logs.where((l) => l.exerciseDone).length,
+    fasting24Count: fastings
+        .where((f) =>
+            f.startedAt.isAfter(cutoff) &&
+            f.targetHours >= 24 &&
+            f.status == 'completed')
+        .length,
   );
 });
 
