@@ -38,6 +38,11 @@ class MealLog {
     this.aiFeedback,
     this.aiSuggestion,
     this.aiAnalyzedAt,
+    this.aiCalories,
+    this.aiCarbsG,
+    this.aiProteinG,
+    this.aiFatG,
+    this.aiConfidence,
   });
 
   final String id;
@@ -58,6 +63,11 @@ class MealLog {
   final String? aiFeedback; // 피드백
   final String? aiSuggestion; // 식단 조절 제안
   final DateTime? aiAnalyzedAt;
+  final int? aiCalories; // kcal(추정)
+  final int? aiCarbsG;
+  final int? aiProteinG;
+  final int? aiFatG;
+  final String? aiConfidence; // high | medium | low
 
   bool get isShake => type == 'shake';
   String get slotLabel => MealSlot.labelOf(mealSlot);
@@ -74,6 +84,11 @@ class MealLog {
       feedback: aiFeedback ?? '',
       suggestion: aiSuggestion ?? '',
       analyzedAt: aiAnalyzedAt!,
+      calories: aiCalories,
+      carbsG: aiCarbsG,
+      proteinG: aiProteinG,
+      fatG: aiFatG,
+      confidence: aiConfidence,
     );
   }
 
@@ -110,11 +125,16 @@ class MealLog {
       aiAnalyzedAt: map['ai_analyzed_at'] == null
           ? null
           : DateTime.parse(map['ai_analyzed_at'] as String),
+      aiCalories: (map['ai_calories'] as num?)?.toInt(),
+      aiCarbsG: (map['ai_carbs_g'] as num?)?.toInt(),
+      aiProteinG: (map['ai_protein_g'] as num?)?.toInt(),
+      aiFatG: (map['ai_fat_g'] as num?)?.toInt(),
+      aiConfidence: map['ai_confidence'] as String?,
     );
   }
 }
 
-/// AI 식단 판독 결과(표시용 묶음).
+/// AI 식단 판독 결과(표시용 묶음 + 저장용).
 class AiAnalysis {
   const AiAnalysis({
     required this.score,
@@ -123,6 +143,11 @@ class AiAnalysis {
     required this.feedback,
     required this.suggestion,
     required this.analyzedAt,
+    this.calories,
+    this.carbsG,
+    this.proteinG,
+    this.fatG,
+    this.confidence,
   });
 
   final int score; // 0~100
@@ -131,9 +156,15 @@ class AiAnalysis {
   final String feedback;
   final String suggestion;
   final DateTime analyzedAt;
+  final int? calories; // kcal(추정)
+  final int? carbsG;
+  final int? proteinG;
+  final int? fatG;
+  final String? confidence; // high | medium | low
 
   bool get isFit => verdict == 'fit';
   bool get isViolation => verdict == 'violation';
+  bool get hasNutrition => calories != null;
 
   /// 판정 한글 라벨.
   String get verdictLabel {
@@ -149,6 +180,20 @@ class AiAnalysis {
     }
   }
 
+  /// 신뢰도 한글 라벨(없으면 null).
+  String? get confidenceLabel {
+    switch (confidence) {
+      case 'high':
+        return '추정 신뢰도 높음';
+      case 'medium':
+        return '추정 신뢰도 보통';
+      case 'low':
+        return '추정 신뢰도 낮음';
+      default:
+        return null;
+    }
+  }
+
   factory AiAnalysis.fromMap(Map<String, dynamic> map) {
     return AiAnalysis(
       score: (map['score'] as num?)?.toInt() ?? 0,
@@ -157,6 +202,26 @@ class AiAnalysis {
       feedback: (map['feedback'] as String?) ?? '',
       suggestion: (map['suggestion'] as String?) ?? '',
       analyzedAt: DateTime.now(),
+      calories: (map['calories'] as num?)?.toInt(),
+      carbsG: (map['carbs_g'] as num?)?.toInt(),
+      proteinG: (map['protein_g'] as num?)?.toInt(),
+      fatG: (map['fat_g'] as num?)?.toInt(),
+      confidence: map['confidence'] as String?,
     );
   }
+
+  /// meal_logs 저장용 컬럼 맵(저장 전 분석 결과를 함께 기록할 때 사용).
+  Map<String, dynamic> toColumns() => {
+        'ai_score': score,
+        'ai_verdict': verdict,
+        'ai_foods': foods,
+        'ai_feedback': feedback,
+        'ai_suggestion': suggestion,
+        'ai_calories': calories,
+        'ai_carbs_g': carbsG,
+        'ai_protein_g': proteinG,
+        'ai_fat_g': fatG,
+        'ai_confidence': confidence,
+        'ai_analyzed_at': analyzedAt.toUtc().toIso8601String(),
+      };
 }

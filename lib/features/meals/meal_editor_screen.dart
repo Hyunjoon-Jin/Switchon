@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/program/diet_rules.dart';
+import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
 import '../../data/models/meal_log.dart';
 import 'meals_controller.dart';
+import 'widgets/ai_result_card.dart';
 
 const int kMaxMealPhotos = 4;
 
@@ -30,6 +32,8 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
   final List<String> _existingPaths = []; // 이미 저장된 사진 경로
   final List<XFile> _newFiles = []; // 새로 추가한 사진
   bool _saving = false;
+  AiAnalysis? _ai; // 저장 전 분석 결과(저장 시 함께 기록)
+  bool _analyzing = false;
 
   bool get _isEdit => widget.existing != null;
   int get _photoCount => _existingPaths.length + _newFiles.length;
@@ -44,6 +48,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
     if (e != null) {
       _tags.addAll(e.foodTags);
       _existingPaths.addAll(e.photos);
+      _ai = e.ai;
     }
   }
 
@@ -86,6 +91,59 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
     setState(() => _newFiles.addAll(picked.take(remaining)));
   }
 
+  String _planText(MealPlan plan) => [
+        '셰이크: ${plan.shake}',
+        if (plan.lunch != null) '점심: ${plan.lunch}',
+        if (plan.dinner != null) '저녁: ${plan.dinner}',
+        if (plan.snack != null) '간식: ${plan.snack}',
+        if (plan.fruit != null) '과일: ${plan.fruit}',
+      ].join(' / ');
+
+  /// 저장 전 즉시 AI 분석 — 새로 고른 사진(+메모)을 인라인으로 보낸다.
+  Future<void> _analyze() async {
+    final bytesList = <Uint8List>[];
+    for (final f in _newFiles) {
+      bytesList.add(await f.readAsBytes());
+    }
+    final memo = _memo.text.trim();
+    if (bytesList.isEmpty && memo.isEmpty) {
+      _snack('사진을 추가하거나 메뉴(메모)를 입력해 주세요.');
+      return;
+    }
+    setState(() => _analyzing = true);
+    try {
+      final pos = ref.read(currentStagePositionProvider);
+      final stage = pos?.stage ?? SwitchOnProgram.stages.first;
+      final result =
+          await ref.read(supabaseServiceProvider).analyzeMealInline(
+                images: bytesList,
+                memo: memo,
+                week: pos?.week ?? 1,
+                day: pos?.day ?? 1,
+                stageTitle: stage.title,
+                allowedFoods: stage.allowedFoods,
+                forbiddenFoods: stage.forbiddenFoods,
+                mealPlan: _planText(stage.mealPlan),
+              );
+      if (!mounted) return;
+      setState(() {
+        _ai = result;
+        _analyzing = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _analyzing = false);
+      final detail = e is StateError ? e.message : e.toString();
+      _snack('AI 분석 실패: $detail');
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   RuleEvaluation? _evaluate() {
     final pos = ref.read(currentStagePositionProvider);
     if (pos == null) return null;
@@ -121,6 +179,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
           loggedAt: _loggedAt,
           foodTags: _tags.toList(),
           ruleViolation: eval?.isViolation,
+          ai: _ai,
         );
       } else {
         await controller.addMeal(
@@ -130,6 +189,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
           loggedAt: _loggedAt,
           foodTags: _tags.toList(),
           ruleViolation: eval?.isViolation,
+          ai: _ai,
         );
       }
       if (mounted) Navigator.pop(context, true);
@@ -241,7 +301,28 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
+
+          // AI 분석 (저장 전 즉시) — 점수·피드백·칼로리/영양 추정
+          OutlinedButton.icon(
+            onPressed: _analyzing ? null : _analyze,
+            icon: _analyzing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(_analyzing
+                ? 'AI가 분석 중…'
+                : (_ai == null ? 'AI 분석 (점수·칼로리·영양)' : 'AI 다시 분석')),
+          ),
+          if (_ai != null) ...[
+            const SizedBox(height: 12),
+            AiResultCard(analysis: _ai!),
+          ],
+          const SizedBox(height: 16),
+
           FilledButton(
             onPressed: _saving ? null : _save,
             child: _saving

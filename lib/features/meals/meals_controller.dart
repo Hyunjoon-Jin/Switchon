@@ -39,6 +39,7 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
     DateTime? loggedAt,
     List<String> foodTags = const [],
     bool? ruleViolation,
+    AiAnalysis? ai,
   }) async {
     await ref.read(supabaseServiceProvider).addMeal(
           mealSlot: mealSlot,
@@ -47,6 +48,7 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
           loggedAt: loggedAt,
           foodTags: foodTags,
           ruleViolation: ruleViolation,
+          ai: ai,
         );
     await _reload();
   }
@@ -59,6 +61,7 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
     DateTime? loggedAt,
     List<String>? foodTags,
     bool? ruleViolation,
+    AiAnalysis? ai,
   }) async {
     await ref.read(supabaseServiceProvider).updateMeal(
           id,
@@ -68,6 +71,7 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
           loggedAt: loggedAt,
           foodTags: foodTags,
           ruleViolation: ruleViolation,
+          ai: ai,
         );
     await _reload();
   }

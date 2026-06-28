@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -268,6 +269,7 @@ class SupabaseService {
     DateTime? loggedAt,
     List<String> foodTags = const [],
     bool? ruleViolation,
+    AiAnalysis? ai,
   }) async {
     final uid = _requireUid();
     await _client.from('meal_logs').insert({
@@ -278,7 +280,10 @@ class SupabaseService {
       'photo_urls': photoUrls,
       if (loggedAt != null) 'logged_at': loggedAt.toUtc().toIso8601String(),
       'food_tags': foodTags,
-      if (ruleViolation != null) 'rule_violation': ruleViolation,
+      // AI 가 위반 판정했으면 그 값을 우선, 아니면 규칙엔진 결과.
+      if (ai != null || ruleViolation != null)
+        'rule_violation': ai != null ? ai.isViolation : ruleViolation,
+      if (ai != null) ...ai.toColumns(),
     });
   }
 
@@ -291,6 +296,7 @@ class SupabaseService {
     DateTime? loggedAt,
     List<String>? foodTags,
     bool? ruleViolation,
+    AiAnalysis? ai,
   }) async {
     await _client.from('meal_logs').update({
       'meal_slot': mealSlot,
@@ -298,7 +304,8 @@ class SupabaseService {
       if (photoUrls != null) 'photo_urls': photoUrls,
       if (loggedAt != null) 'logged_at': loggedAt.toUtc().toIso8601String(),
       if (foodTags != null) 'food_tags': foodTags,
-      'rule_violation': ruleViolation,
+      'rule_violation': ai != null ? ai.isViolation : ruleViolation,
+      if (ai != null) ...ai.toColumns(),
     }).eq('id', id);
   }
 
@@ -335,7 +342,43 @@ class SupabaseService {
         'meal_plan': mealPlan,
       },
     );
-    final data = res.data;
+    return _parseAnalysis(res.data);
+  }
+
+  /// 저장 전(편집 화면) 즉시 분석. 사진 바이트(+메뉴 텍스트)를 인라인으로 보낸다.
+  /// 결과는 DB 에 기록하지 않고 반환만 하며, 저장 시 [addMeal]/[updateMeal] 의
+  /// `ai` 인자로 함께 저장한다.
+  Future<AiAnalysis> analyzeMealInline({
+    required List<Uint8List> images,
+    String? memo,
+    required int week,
+    required int day,
+    required String stageTitle,
+    required List<String> allowedFoods,
+    required List<String> forbiddenFoods,
+    required String mealPlan,
+  }) async {
+    _requireUid();
+    final encoded = images
+        .map((b) => {'media_type': 'image/jpeg', 'data': base64Encode(b)})
+        .toList();
+    final res = await _client.functions.invoke(
+      'analyze-meal',
+      body: {
+        'images': encoded,
+        if (memo != null && memo.isNotEmpty) 'memo': memo,
+        'week': week,
+        'day': day,
+        'stage_title': stageTitle,
+        'allowed_foods': allowedFoods,
+        'forbidden_foods': forbiddenFoods,
+        'meal_plan': mealPlan,
+      },
+    );
+    return _parseAnalysis(res.data);
+  }
+
+  AiAnalysis _parseAnalysis(dynamic data) {
     if (data is! Map) {
       throw StateError('AI 분석 응답을 해석하지 못했어요.');
     }

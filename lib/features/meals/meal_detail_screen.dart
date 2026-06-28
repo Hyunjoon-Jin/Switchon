@@ -8,6 +8,7 @@ import '../../data/models/meal_log.dart';
 import '../stats/stats_controller.dart';
 import 'meal_editor_screen.dart';
 import 'meals_controller.dart';
+import 'widgets/ai_result_card.dart';
 
 /// 식단 기록 상세 보기. 수정/삭제 + AI 식단 판독. 변경 시 pop(true).
 class MealDetailScreen extends ConsumerStatefulWidget {
@@ -268,133 +269,15 @@ class _AiSection extends StatelessWidget {
       );
     }
 
-    final a = analysis!;
-    final Color accent;
-    final IconData icon;
-    if (a.isFit) {
-      accent = theme.colorScheme.primary;
-      icon = Icons.check_circle_outline;
-    } else if (a.isViolation) {
-      accent = theme.colorScheme.error;
-      icon = Icons.error_outline;
-    } else {
-      accent = Colors.orange.shade700;
-      icon = Icons.warning_amber_outlined;
-    }
-
-    return Card(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.auto_awesome, size: 18, color: accent),
-                const SizedBox(width: 6),
-                Text('AI 식단 분석', style: theme.textTheme.titleMedium),
-                const Spacer(),
-                if (analyzing)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  TextButton(
-                    onPressed: onAnalyze,
-                    child: const Text('다시 분석'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                // 점수 원형
-                Container(
-                  width: 64,
-                  height: 64,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: accent.withOpacity(0.12),
-                    border: Border.all(color: accent, width: 2),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('${a.score}',
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(color: accent, height: 1.0)),
-                      Text('점',
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: accent)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(icon, size: 18, color: accent),
-                          const SizedBox(width: 4),
-                          Text(a.verdictLabel,
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(color: accent)),
-                        ],
-                      ),
-                      if (a.foods.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(a.foods,
-                            style: theme.textTheme.bodyMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (a.feedback.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              Text(a.feedback, style: theme.textTheme.bodyMedium),
-            ],
-            if (a.suggestion.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.lightbulb_outline,
-                        size: 18,
-                        color: theme.colorScheme.onSecondaryContainer),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(a.suggestion,
-                          style: TextStyle(
-                              color:
-                                  theme.colorScheme.onSecondaryContainer)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Text('※ AI 분석은 참고용이며 의학적 진단이 아닙니다.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
-          ],
-        ),
-      ),
+    return AiResultCard(
+      analysis: analysis!,
+      headerAction: analyzing
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : TextButton(onPressed: onAnalyze, child: const Text('다시 분석')),
     );
   }
 }
