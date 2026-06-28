@@ -8,6 +8,7 @@ import '../../core/theme/glass.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
 import '../meal_guide/meal_guide_screen.dart';
+import '../recovery/recovery_card.dart';
 import '../reminders/reminders_screen.dart';
 import 'daily_log_controller.dart';
 import 'widgets/checklist_card.dart';
@@ -73,6 +74,7 @@ class _Today extends ConsumerWidget {
         children: [
           if (pos.isCompleted) const _CompletedBanner(),
           if (pos.isPaused) const _PausedBanner(),
+          const RecoveryCard(),
           _WeeklyCheckCard(stageId: stage.id),
           _StageHero(pos: pos),
           const SizedBox(height: 20),

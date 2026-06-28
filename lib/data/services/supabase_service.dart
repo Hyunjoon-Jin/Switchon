@@ -90,6 +90,68 @@ class SupabaseService {
     return _patchProfile({'status': 'completed', 'paused_at': null});
   }
 
+  // --- 회복(Recovery): 계획 유연 조정 + 이벤트 기록 -----------------------------
+
+  /// 현재 단계를 더 머무르도록 start_date 를 [days] 만큼 뒤로 민다(하루 연장/반복).
+  Future<Profile> extendProgram(Profile profile, int days) async {
+    final start = profile.startDate;
+    if (start == null) return profile; // 시작 전이면 변경 없음
+    final newStart = DailyLog.dateOnly(start).add(Duration(days: days));
+    return _patchProfile(
+        {'start_date': newStart.toIso8601String().split('T').first});
+  }
+
+  /// 회복 이벤트 기록(감지 유형 + 처리 방식).
+  Future<void> logRecoveryEvent(String kind, {String? resolution}) async {
+    final uid = _requireUid();
+    await _client.from('recovery_events').insert({
+      'user_id': uid,
+      'kind': kind,
+      if (resolution != null) 'resolution': resolution,
+    });
+  }
+
+  /// 최근 회복 이벤트(통계/반복 안내용).
+  Future<List<Map<String, dynamic>>> fetchRecentRecoveryEvents(
+      {int limit = 30}) async {
+    final uid = _requireUid();
+    final rows = await _client
+        .from('recovery_events')
+        .select()
+        .eq('user_id', uid)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (rows as List).cast<Map<String, dynamic>>();
+  }
+
+  /// AI 회복 코칭(Edge Function: recovery-coach). 미배포/실패 시 예외 → 호출부에서 폴백.
+  Future<String> recoveryCoach({
+    required String kind,
+    required int week,
+    required int day,
+    required String stageTitle,
+    required double avgCompletion,
+    required int recentViolations,
+  }) async {
+    _requireUid();
+    final res = await _client.functions.invoke('recovery-coach', body: {
+      'kind': kind,
+      'week': week,
+      'day': day,
+      'stage_title': stageTitle,
+      'avg_completion': avgCompletion,
+      'recent_violations': recentViolations,
+    });
+    final data = res.data;
+    if (data is Map && data['coaching'] != null) {
+      return data['coaching'].toString();
+    }
+    if (data is Map && data['error'] != null) {
+      throw StateError(data['error'].toString());
+    }
+    throw StateError('코칭 응답을 해석하지 못했어요.');
+  }
+
   // --- progress (주차 점검 / 분기) ----------------------------------------------
 
   Future<WeekProgress?> fetchWeekProgress(int weekNo) async {
