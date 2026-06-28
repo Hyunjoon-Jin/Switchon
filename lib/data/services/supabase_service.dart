@@ -90,6 +90,18 @@ class SupabaseService {
     return _patchProfile({'status': 'completed', 'paused_at': null});
   }
 
+  /// 프로그램을 오늘부터 1일차로 재시작합니다. 기존 기록은 유지됩니다.
+  Future<Profile> restartProgram(DateTime today) {
+    final date = DailyLog.dateOnly(today).toIso8601String().split('T').first;
+    return _patchProfile({
+      'status': 'active',
+      'start_date': date,
+      'paused_at': null,
+      'current_week': 1,
+      'current_day': 1,
+    });
+  }
+
   // --- 회복(Recovery): 계획 유연 조정 + 이벤트 기록 -----------------------------
 
   /// 현재 단계를 더 머무르도록 start_date 를 [days] 만큼 뒤로 민다(하루 연장/반복).

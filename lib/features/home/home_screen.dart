@@ -310,6 +310,9 @@ class _OverflowMenu extends ConsumerWidget {
             await service.resumeProgram(profile, DateTime.now());
             ref.invalidate(profileProvider);
             break;
+          case 'restart':
+            await _confirmRestart(context, ref);
+            break;
           case 'signout':
             await ref.read(authServiceProvider).signOut();
             ref.invalidate(profileProvider);
@@ -323,9 +326,56 @@ class _OverflowMenu extends ConsumerWidget {
           const PopupMenuItem(value: 'resume', child: Text('프로그램 재개'))
         else
           const PopupMenuItem(value: 'pause', child: Text('프로그램 일시정지')),
+        const PopupMenuItem(
+          value: 'restart',
+          child: Text('처음부터 다시 시작'),
+        ),
         const PopupMenuItem(value: 'signout', child: Text('로그아웃')),
       ],
     );
+  }
+
+  Future<void> _confirmRestart(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('처음부터 다시 시작할까요?'),
+        content: const Text(
+          '오늘을 1주차 1일차로 재설정합니다.\n'
+          '지금까지의 식사·수면·단식 기록은 그대로 유지됩니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('다시 시작'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (!context.mounted) return;
+
+    try {
+      await ref.read(supabaseServiceProvider).restartProgram(DateTime.now());
+      ref.invalidate(profileProvider);
+      ref.invalidate(dailyLogControllerProvider);
+      ref.invalidate(weeklyStatsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('1주차 1일차로 재시작했어요. 화이팅!')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('재시작에 실패했어요. 잠시 후 다시 시도해 주세요.')),
+        );
+      }
+    }
   }
 }
 
