@@ -7,7 +7,9 @@ import '../../core/providers.dart';
 import '../../core/theme/glass.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
+import '../fasting/fasting_controller.dart';
 import '../meal_guide/meal_guide_screen.dart';
+import '../meals/meals_controller.dart';
 import '../recovery/recovery_card.dart';
 import '../reminders/reminders_screen.dart';
 import 'daily_log_controller.dart';
@@ -63,11 +65,15 @@ class _Today extends ConsumerWidget {
     );
     final stage = pos.stage;
     final logAsync = ref.watch(dailyLogControllerProvider);
+    final mealsAsync = ref.watch(mealsControllerProvider);
+    final fastingAsync = ref.watch(fastingControllerProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(profileProvider);
         ref.invalidate(dailyLogControllerProvider);
+        ref.invalidate(mealsControllerProvider);
+        ref.invalidate(fastingControllerProvider);
       },
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -79,7 +85,7 @@ class _Today extends ConsumerWidget {
           _StageHero(pos: pos),
           const SizedBox(height: 20),
 
-          // 오늘의 체크리스트 (P1 핵심)
+          // 오늘의 체크리스트 — 물·셰이크·수면·단식·운동 한 곳에서 입력
           logAsync.when(
             loading: () => const Card(
               child: Padding(
@@ -95,9 +101,15 @@ class _Today extends ConsumerWidget {
             ),
             data: (log) => ChecklistCard(
               log: log,
+              shakeCount: shakeCountOf(mealsAsync.valueOrNull ?? []),
+              fastingSession: fastingAsync.valueOrNull,
               onAddWater: (ml) => _guard(
                 context,
                 () => ref.read(dailyLogControllerProvider.notifier).addWater(ml),
+              ),
+              onAddShake: () => _guard(
+                context,
+                () => ref.read(mealsControllerProvider.notifier).addShake(),
               ),
               onSetSleepStart: (m) => _guard(
                 context,
@@ -111,12 +123,20 @@ class _Today extends ConsumerWidget {
                     .read(dailyLogControllerProvider.notifier)
                     .setSleepTimes(endMinutes: m),
               ),
-              onToggleFasting: () => _guard(
+              onStartFasting: (hours) => _guard(
                 context,
-                () => ref
-                    .read(dailyLogControllerProvider.notifier)
-                    .toggleFasting(),
+                () async {
+                  await ref
+                      .read(fastingControllerProvider.notifier)
+                      .start(hours);
+                  if (!log.fastingDone) {
+                    await ref
+                        .read(dailyLogControllerProvider.notifier)
+                        .toggleFasting();
+                  }
+                },
               ),
+              onStopFasting: () => _confirmStopFasting(context, ref),
               onToggleExercise: () => _guard(
                 context,
                 () => ref
@@ -151,6 +171,41 @@ class _Today extends ConsumerWidget {
         );
       }
     }
+  }
+
+  Future<void> _confirmStopFasting(BuildContext context, WidgetRef ref) async {
+    final session = ref.read(fastingControllerProvider).valueOrNull;
+    if (session == null) return;
+    final reachedGoal = session.reachedGoalAt(DateTime.now());
+
+    bool proceed = true;
+    if (!reachedGoal) {
+      proceed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('단식을 중단할까요?'),
+              content: const Text('목표 시간 전이에요. 무리하지 않는 것도 중요해요.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('계속하기'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('중단'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+    }
+    if (!proceed) return;
+
+    await _guard(context, () async {
+      await ref
+          .read(fastingControllerProvider.notifier)
+          .stop(canceled: !reachedGoal);
+    });
   }
 }
 

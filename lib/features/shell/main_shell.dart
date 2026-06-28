@@ -6,6 +6,7 @@ import '../community/community_screen.dart';
 import '../fasting/fasting_floating_timer.dart';
 import '../fasting/fasting_screen.dart';
 import '../home/home_screen.dart';
+import '../home/widgets/quick_log_sheet.dart';
 import '../meals/meals_screen.dart';
 import '../stats/stats_screen.dart';
 
@@ -31,6 +32,15 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 기록 탭(2)과 단식 탭(1)은 자체 FAB / 화면이 있으므로 제외
+      floatingActionButton: (_index == 1 || _index == 2)
+          ? null
+          : FloatingActionButton(
+              heroTag: 'quick_log_fab',
+              tooltip: '빠른 기록',
+              onPressed: () => showQuickLogSheet(context),
+              child: const Icon(Icons.add),
+            ),
       body: Stack(
         children: [
           IndexedStack(index: _index, children: _screens),
@@ -38,7 +48,7 @@ class _MainShellState extends ConsumerState<MainShell> {
           if (_index != 1)
             Positioned(
               right: 16,
-              bottom: 16,
+              bottom: 72,
               child: FastingFloatingTimer(
                 onTap: () => setState(() => _index = 1),
               ),

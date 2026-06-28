@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/daily_log.dart';
+import '../../../data/models/fasting_session.dart';
 
-/// 가로로 나란히 두는 물 버튼용 — 전역 테마의 '가로 꽉 채움'을 무력화(폭 제한).
-final ButtonStyle _waterBtnStyle = OutlinedButton.styleFrom(
-  minimumSize: const Size(0, 40),
-  padding: const EdgeInsets.symmetric(horizontal: 16),
+/// 가로로 나란히 두는 버튼 공통 스타일.
+final ButtonStyle _rowBtnStyle = OutlinedButton.styleFrom(
+  minimumSize: const Size(0, 36),
+  padding: const EdgeInsets.symmetric(horizontal: 12),
 );
 
-/// 일일 체크리스트 카드 — 물·수면·단식·운동 + 달성률 시각화.
+/// 일일 체크리스트 카드 — 물·셰이크·수면·단식·운동 + 달성률 시각화.
 class ChecklistCard extends StatelessWidget {
   const ChecklistCard({
     super.key,
     required this.log,
+    required this.shakeCount,
     required this.onAddWater,
+    required this.onAddShake,
     required this.onSetSleepStart,
     required this.onSetSleepEnd,
-    required this.onToggleFasting,
+    required this.fastingSession,
+    required this.onStartFasting,
+    required this.onStopFasting,
     required this.onToggleExercise,
   });
 
   final DailyLog log;
+  final int shakeCount;
   final ValueChanged<int> onAddWater;
-  final ValueChanged<int> onSetSleepStart; // 잠든 시각(분)
-  final ValueChanged<int> onSetSleepEnd; // 일어난 시각(분)
-  final VoidCallback onToggleFasting;
+  final VoidCallback onAddShake;
+  final ValueChanged<int> onSetSleepStart;
+  final ValueChanged<int> onSetSleepEnd;
+  final FastingSession? fastingSession;
+  final ValueChanged<int> onStartFasting; // 14 또는 24
+  final VoidCallback onStopFasting;
   final VoidCallback onToggleExercise;
 
   @override
@@ -53,6 +62,10 @@ class ChecklistCard extends StatelessWidget {
             _WaterRow(log: log, onAddWater: onAddWater),
             const Divider(height: 28),
 
+            // 단백질 셰이크
+            _ShakeRow(count: shakeCount, onAdd: onAddShake),
+            const Divider(height: 28),
+
             // 수면
             _SleepRow(
               log: log,
@@ -62,11 +75,11 @@ class ChecklistCard extends StatelessWidget {
             const Divider(height: 28),
 
             // 단식
-            _ToggleRow(
-              icon: Icons.timer_outlined,
-              label: '단식',
-              done: log.fastingDone,
-              onTap: onToggleFasting,
+            _FastingRow(
+              session: fastingSession,
+              fastingDone: log.fastingDone,
+              onStart: onStartFasting,
+              onStop: onStopFasting,
             ),
             const SizedBox(height: 8),
 
@@ -152,13 +165,13 @@ class _WaterRow extends StatelessWidget {
         Row(
           children: [
             OutlinedButton(
-              style: _waterBtnStyle,
+              style: _rowBtnStyle,
               onPressed: () => onAddWater(250),
               child: const Text('+250ml'),
             ),
             const SizedBox(width: 8),
             OutlinedButton(
-              style: _waterBtnStyle,
+              style: _rowBtnStyle,
               onPressed: () => onAddWater(500),
               child: const Text('+500ml'),
             ),
@@ -169,6 +182,49 @@ class _WaterRow extends StatelessWidget {
                 child: const Text('초기화'),
               ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ShakeRow extends StatelessWidget {
+  const _ShakeRow({required this.count, required this.onAdd});
+  final int count;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(Icons.local_drink_outlined, color: theme.colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('단백질 셰이크'),
+              Text(
+                count == 0 ? '아직 기록 없음' : '오늘 $count회',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        if (count > 0) ...[
+          Icon(Icons.check_circle, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+        ],
+        FilledButton.tonal(
+          style: const ButtonStyle(
+            minimumSize: WidgetStatePropertyAll(Size(0, 36)),
+            padding: WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 14)),
+          ),
+          onPressed: onAdd,
+          child: const Text('+1회'),
         ),
       ],
     );
@@ -314,6 +370,86 @@ class _TimeButton extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 단식 행 — 세션 유무에 따라 상태/시작/종료 표시.
+class _FastingRow extends StatelessWidget {
+  const _FastingRow({
+    required this.session,
+    required this.fastingDone,
+    required this.onStart,
+    required this.onStop,
+  });
+  final FastingSession? session;
+  final bool fastingDone;
+  final ValueChanged<int> onStart;
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (session != null) {
+      final s = session!;
+      final elapsed = s.elapsedAt(DateTime.now());
+      final h = elapsed.inHours.toString().padLeft(2, '0');
+      final m = (elapsed.inMinutes % 60).toString().padLeft(2, '0');
+      return Row(
+        children: [
+          Icon(Icons.timer, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${s.targetHours}h 단식 진행 중'),
+                Text(
+                  '경과 $h:$m',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            style: _rowBtnStyle,
+            onPressed: onStop,
+            child: const Text('종료'),
+          ),
+        ],
+      );
+    }
+
+    if (fastingDone) {
+      return Row(
+        children: [
+          Icon(Icons.timer, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('단식')),
+          Icon(Icons.check_circle, color: theme.colorScheme.primary),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Icon(Icons.timer_outlined, color: theme.colorScheme.primary),
+        const SizedBox(width: 10),
+        const Expanded(child: Text('단식')),
+        OutlinedButton(
+          style: _rowBtnStyle,
+          onPressed: () => onStart(14),
+          child: const Text('14h'),
+        ),
+        const SizedBox(width: 6),
+        OutlinedButton(
+          style: _rowBtnStyle,
+          onPressed: () => onStart(24),
+          child: const Text('24h'),
+        ),
+      ],
     );
   }
 }
