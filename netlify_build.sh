@@ -17,14 +17,16 @@ flutter config --enable-web
 
 echo "▶ 웹 플랫폼 폴더 생성…"
 flutter create . --platforms=web
-# 진단/로딩 표시가 들어간 커스텀 index.html 적용 (flutter create 가 만든 것 덮어쓰기)
+# 커스텀 파일 적용 (flutter create 가 만든 것 덮어쓰기)
 cp tools/index.html web/index.html
+cp tools/manifest.json web/manifest.json
 
 echo "▶ 의존성 설치…"
 flutter pub get
 
-echo "▶ 웹 빌드 (release)…"
+echo "▶ 웹 빌드 (release, html renderer — 모바일 최적화)…"
 flutter build web --release \
+  --web-renderer html \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 
