@@ -293,17 +293,19 @@ class _TimeButton extends StatelessWidget {
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(label,
+              textAlign: TextAlign.center,
               style: theme.textTheme.labelSmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 2),
           Text(
             value ?? '선택',
+            textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
               color: value == null
                   ? theme.colorScheme.onSurfaceVariant
