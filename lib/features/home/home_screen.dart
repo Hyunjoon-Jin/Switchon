@@ -284,42 +284,20 @@ class _ProgramProgress extends StatelessWidget {
   }
 }
 
-class _OverflowMenu extends ConsumerWidget {
+class _OverflowMenu extends ConsumerStatefulWidget {
   const _OverflowMenu({required this.profile});
   final Profile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final paused = profile.status == 'paused';
+  ConsumerState<_OverflowMenu> createState() => _OverflowMenuState();
+}
+
+class _OverflowMenuState extends ConsumerState<_OverflowMenu> {
+  @override
+  Widget build(BuildContext context) {
+    final paused = widget.profile.status == 'paused';
     return PopupMenuButton<String>(
-      onSelected: (value) async {
-        final service = ref.read(supabaseServiceProvider);
-        switch (value) {
-          case 'reminders':
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const RemindersScreen(),
-              ),
-            );
-            break;
-          case 'pause':
-            await service.pauseProgram(DateTime.now());
-            ref.invalidate(profileProvider);
-            break;
-          case 'resume':
-            await service.resumeProgram(profile, DateTime.now());
-            ref.invalidate(profileProvider);
-            break;
-          case 'restart':
-            await _confirmRestart(context, ref);
-            break;
-          case 'signout':
-            await ref.read(authServiceProvider).signOut();
-            ref.invalidate(profileProvider);
-            ref.invalidate(dailyLogControllerProvider);
-            break;
-        }
-      },
+      onSelected: _onSelected,
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'reminders', child: Text('알림 설정')),
         if (paused)
@@ -335,7 +313,36 @@ class _OverflowMenu extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmRestart(BuildContext context, WidgetRef ref) async {
+  Future<void> _onSelected(String value) async {
+    final service = ref.read(supabaseServiceProvider);
+    switch (value) {
+      case 'reminders':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const RemindersScreen(),
+          ),
+        );
+        break;
+      case 'pause':
+        await service.pauseProgram(DateTime.now());
+        ref.invalidate(profileProvider);
+        break;
+      case 'resume':
+        await service.resumeProgram(widget.profile, DateTime.now());
+        ref.invalidate(profileProvider);
+        break;
+      case 'restart':
+        await _confirmRestart();
+        break;
+      case 'signout':
+        await ref.read(authServiceProvider).signOut();
+        ref.invalidate(profileProvider);
+        ref.invalidate(dailyLogControllerProvider);
+        break;
+    }
+  }
+
+  Future<void> _confirmRestart() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -357,20 +364,20 @@ class _OverflowMenu extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     try {
       await ref.read(supabaseServiceProvider).restartProgram(DateTime.now());
       ref.invalidate(profileProvider);
       ref.invalidate(dailyLogControllerProvider);
       ref.invalidate(weeklyStatsProvider);
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('1주차 1일차로 재시작했어요. 화이팅!')),
         );
       }
     } catch (_) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('재시작에 실패했어요. 잠시 후 다시 시도해 주세요.')),
         );
