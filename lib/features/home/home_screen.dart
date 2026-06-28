@@ -297,6 +297,7 @@ class _OverflowMenuState extends ConsumerState<_OverflowMenu> {
   Widget build(BuildContext context) {
     final paused = widget.profile.status == 'paused';
     return PopupMenuButton<String>(
+      icon: const Icon(Icons.settings_outlined),
       onSelected: _onSelected,
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'reminders', child: Text('알림 설정')),
