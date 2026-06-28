@@ -75,7 +75,8 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _analyzing = false);
-      _snack('AI 분석에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      final detail = e is StateError ? e.message : e.toString();
+      _snack('AI 분석 실패: $detail');
     }
   }
 
