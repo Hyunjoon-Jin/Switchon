@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/program/stage_engine.dart';
 import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
+import '../../core/theme/glass.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
 import '../meal_guide/meal_guide_screen.dart';
@@ -73,15 +74,7 @@ class _Today extends ConsumerWidget {
           if (pos.isCompleted) const _CompletedBanner(),
           if (pos.isPaused) const _PausedBanner(),
           _WeeklyCheckCard(stageId: stage.id),
-          Text(
-            '${pos.week}주차  ·  ${pos.day}일차',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(color: theme.colorScheme.primary),
-          ),
-          const SizedBox(height: 4),
-          Text(stage.title, style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          _ProgramProgress(programDay: pos.programDay, totalDays: pos.totalDays),
+          _StageHero(pos: pos),
           const SizedBox(height: 20),
 
           // 오늘의 체크리스트 (P1 핵심)
@@ -141,14 +134,6 @@ class _Today extends ConsumerWidget {
             _NoteCard(text: stage.notes!),
           ],
           const SizedBox(height: 24),
-          Center(
-            child: Text(
-              '단식/셰이크 타이머 · 식단 기록은 곧 추가됩니다 (P2)',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-          ),
         ],
       ),
     );
@@ -164,6 +149,52 @@ class _Today extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+/// 오늘의 단계 히어로 — 주차/일차 + 단계명 + 진행률 (글라스).
+class _StageHero extends StatelessWidget {
+  const _StageHero({required this.pos});
+  final StagePosition pos;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GlassCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.secondary,
+                  ]),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${pos.week}주차 · ${pos.day}일차',
+                  style: const TextStyle(
+                    color: Color(0xFF06251A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(pos.stage.title, style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 14),
+          _ProgramProgress(programDay: pos.programDay, totalDays: pos.totalDays),
+        ],
+      ),
+    );
   }
 }
 

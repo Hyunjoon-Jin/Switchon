@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/glass.dart';
 import '../community/community_screen.dart';
 import '../fasting/fasting_screen.dart';
 import '../home/home_screen.dart';
@@ -29,10 +30,17 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassCard(
+          padding: EdgeInsets.zero,
+          radius: 28,
+          blur: 24,
+          child: NavigationBar(
+            backgroundColor: Colors.transparent,
+            selectedIndex: _index,
+            onDestinationSelected: (i) => setState(() => _index = i),
+            destinations: const [
           NavigationDestination(
             icon: Icon(Icons.today_outlined),
             selectedIcon: Icon(Icons.today),
@@ -58,7 +66,9 @@ class _MainShellState extends State<MainShell> {
             selectedIcon: Icon(Icons.groups),
             label: '커뮤니티',
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/glass.dart';
 import '../../../data/models/meal_log.dart';
 
 /// AI 분석 결과 카드(점수·판정·피드백·조절제안·영양 추정). 상세/편집 공용.
@@ -29,11 +30,8 @@ class AiResultCard extends StatelessWidget {
       icon = Icons.warning_amber_outlined;
     }
 
-    return Card(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
+    return GlassCard(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -124,7 +122,6 @@ class AiResultCard extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant)),
           ],
         ),
-      ),
     );
   }
 }
