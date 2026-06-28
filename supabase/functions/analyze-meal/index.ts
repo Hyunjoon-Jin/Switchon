@@ -5,8 +5,8 @@
 //   1) 호출자(JWT)를 검증하고, 본인 소유의 식사 기록만 분석.
 //   2) 비공개 버킷(meal-photos)에서 사진을 서비스 롤로 내려받아 base64 인코딩.
 //   3) Claude(claude-opus-4-8, 비전)에게 "현재 단계 규칙 + 사진"을 주고
-//      구조화된 판정을 강제(tool_choice)로 받아옴.
-//   4) 결과를 meal_logs 에 기록. verdict='violation' 이면 rule_violation=true (②B).
+//      구조화된 판정을 강제(tool_choice)로 받아옴. (Anthropic REST 직접 호출)
+//   4) 결과를 meal_logs 에 기록. verdict='violation' 이면 rule_violation=true.
 //   5) 결과 JSON 을 클라이언트에 반환.
 //
 // 필요한 환경변수(Function Secrets):
@@ -14,16 +14,14 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (보통 자동 주입)
 //   SUPABASE_ANON_KEY                          (보통 자동 주입)
 //
-// 배포:  supabase functions deploy analyze-meal
-// 보안:  ANTHROPIC_API_KEY 는 절대 클라이언트 앱에 넣지 않습니다.
+// 외부 SDK 없이 fetch 만 사용해 부팅 실패 위험을 없앤 버전.
 // =============================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "npm:@anthropic-ai/sdk";
 
 const MODEL = "claude-opus-4-8";
 const MAX_PHOTOS = 2; // 비용·지연 통제: 최대 2장만 분석
 
-const CORS = {
+const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
@@ -49,7 +47,8 @@ const ANALYSIS_TOOL = {
     properties: {
       foods: {
         type: "string",
-        description: "사진에서 인식한 음식들을 한국어로, 콤마로 구분 (예: '현미밥, 닭가슴살, 김치')",
+        description:
+          "사진에서 인식한 음식들을 한국어로, 콤마로 구분 (예: '현미밥, 닭가슴살, 김치')",
       },
       verdict: {
         type: "string",
@@ -74,7 +73,7 @@ const ANALYSIS_TOOL = {
     },
     required: ["foods", "verdict", "score", "feedback", "suggestion"],
   },
-} as const;
+};
 
 function systemPrompt(b: Body): string {
   return [
@@ -82,9 +81,9 @@ function systemPrompt(b: Body): string {
     "사용자가 찍은 식사 사진을 보고, 지금 단계 기준으로 식단에 부합하는지 판정합니다.",
     "",
     `현재 단계: ${b.week}주차 ${b.day}일차 — ${b.stage_title}`,
-    `이 단계 허용 식품: ${b.allowed_foods.join(", ")}`,
-    `이 단계 제한 식품: ${b.forbidden_foods.join(", ")}`,
-    `권장 식단: ${b.meal_plan}`,
+    `이 단계 허용 식품: ${(b.allowed_foods ?? []).join(", ")}`,
+    `이 단계 제한 식품: ${(b.forbidden_foods ?? []).join(", ")}`,
+    `권장 식단: ${b.meal_plan ?? ""}`,
     "",
     "판정 기준:",
     "- 제한 식품(밀가루·면·빵·설탕·디저트·튀김·가공식품·술·해당 단계 금지 과일 등)이 보이면 verdict=violation.",
@@ -101,6 +100,7 @@ function systemPrompt(b: Body): string {
 }
 
 Deno.serve(async (req: Request) => {
+  // CORS preflight — 반드시 가장 먼저 처리.
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }
@@ -108,7 +108,10 @@ Deno.serve(async (req: Request) => {
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
-      return json({ error: "AI 기능이 아직 설정되지 않았어요. (ANTHROPIC_API_KEY 미설정)" }, 200);
+      return json(
+        { error: "AI 기능이 아직 설정되지 않았어요. (ANTHROPIC_API_KEY 미설정)" },
+        200,
+      );
     }
 
     const body = (await req.json()) as Body;
@@ -147,7 +150,10 @@ Deno.serve(async (req: Request) => {
     ].filter(Boolean).slice(0, MAX_PHOTOS);
 
     if (paths.length === 0) {
-      return json({ error: "분석할 사진이 없어요. 사진을 먼저 추가해 주세요." }, 200);
+      return json(
+        { error: "분석할 사진이 없어요. 사진을 먼저 추가해 주세요." },
+        200,
+      );
     }
 
     // 사진 다운로드 → base64
@@ -168,49 +174,73 @@ Deno.serve(async (req: Request) => {
       });
     }
     if (imageBlocks.length === 0) {
-      return json({ error: "사진을 불러오지 못했어요. 다시 시도해 주세요." }, 200);
+      return json(
+        { error: "사진을 불러오지 못했어요. 다시 시도해 주세요." },
+        200,
+      );
     }
 
-    // Claude 호출 (구조화 출력 강제)
-    const anthropic = new Anthropic({ apiKey });
-    const msg = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system: systemPrompt(body),
-      tools: [ANALYSIS_TOOL as unknown as Anthropic.Tool],
-      tool_choice: { type: "tool", name: "report_meal_analysis" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...(imageBlocks as Anthropic.ContentBlockParam[]),
-            {
-              type: "text",
-              text: "이 식사 사진을 현재 단계 기준으로 분석해 주세요.",
-            },
-          ],
-        },
-      ],
+    // Claude 호출 (Anthropic REST 직접 호출, 구조화 출력 강제)
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1024,
+        system: systemPrompt(body),
+        tools: [ANALYSIS_TOOL],
+        tool_choice: { type: "tool", name: "report_meal_analysis" },
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...imageBlocks,
+              {
+                type: "text",
+                text: "이 식사 사진을 현재 단계 기준으로 분석해 주세요.",
+              },
+            ],
+          },
+        ],
+      }),
     });
 
-    const toolBlock = msg.content.find((b) => b.type === "tool_use");
-    if (!toolBlock || toolBlock.type !== "tool_use") {
-      return json({ error: "AI 분석 결과를 받지 못했어요. 다시 시도해 주세요." }, 200);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      return json(
+        { error: `AI 호출 실패(${aiRes.status}): ${errText.slice(0, 300)}` },
+        200,
+      );
+    }
+
+    const msg = await aiRes.json();
+    const toolBlock = (msg.content ?? []).find(
+      (b: { type?: string }) => b.type === "tool_use",
+    );
+    if (!toolBlock) {
+      return json(
+        { error: "AI 분석 결과를 받지 못했어요. 다시 시도해 주세요." },
+        200,
+      );
     }
     const out = toolBlock.input as {
-      foods: string;
-      verdict: "fit" | "caution" | "violation";
-      score: number;
-      feedback: string;
-      suggestion: string;
+      foods?: string;
+      verdict?: string;
+      score?: number;
+      feedback?: string;
+      suggestion?: string;
     };
 
     const score = Math.max(0, Math.min(100, Math.round(out.score ?? 0)));
-    const verdict = ["fit", "caution", "violation"].includes(out.verdict)
-      ? out.verdict
+    const verdict = ["fit", "caution", "violation"].includes(out.verdict ?? "")
+      ? out.verdict!
       : "caution";
 
-    // 결과 기록 (②B: violation 이면 rule_violation 덮어쓰기)
+    // 결과 기록 (violation 이면 rule_violation 덮어쓰기)
     await admin
       .from("meal_logs")
       .update({
