@@ -68,7 +68,7 @@ class _MissionCardState extends ConsumerState<MissionCard> {
       }
     }
 
-    final effectiveDone = missionDone | autoChecked;
+    final effectiveDone = missionDone.union(autoChecked);
     final doneCount = widget.mission.where(effectiveDone.contains).length;
 
     Future<void> toggle(String label) async {
