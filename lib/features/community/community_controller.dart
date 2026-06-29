@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/providers.dart';
 import '../../data/models/community.dart';
@@ -33,27 +34,84 @@ final userPostsProvider =
 
 /// 현재 주차 그룹 피드.
 final feedProvider =
-    AsyncNotifierProvider<FeedController, List<FeedItem>>(FeedController.new);
+    AsyncNotifierProvider<FeedController, FeedState>(FeedController.new);
 
-class FeedController extends AsyncNotifier<List<FeedItem>> {
+/// 피드 상태 — 항목 목록 + 실시간으로 도착한 새 게시글 수.
+class FeedState {
+  const FeedState({required this.items, this.newCount = 0});
+  final List<FeedItem> items;
+  final int newCount; // 사용자가 확인 전 새로 도착한 게시글 수
+
+  FeedState copyWith({List<FeedItem>? items, int? newCount}) => FeedState(
+        items: items ?? this.items,
+        newCount: newCount ?? this.newCount,
+      );
+}
+
+class FeedController extends AsyncNotifier<FeedState> {
+  RealtimeChannel? _channel;
+
   @override
-  Future<List<FeedItem>> build() {
+  Future<FeedState> build() async {
     ref.watch(authStateProvider);
     final week = ref.watch(feedWeekProvider);
-    return ref.watch(communityServiceProvider).fetchFeed(week);
+    final service = ref.watch(communityServiceProvider);
+
+    // 기존 채널 정리
+    _channel?.unsubscribe();
+
+    // Realtime 구독 — 새 게시글이 오면 newCount 증가
+    _channel = service.subscribeToFeed(
+      week: week,
+      onInsert: _onRealtimeInsert,
+    );
+    ref.onDispose(() => _channel?.unsubscribe());
+
+    final items = await service.fetchFeed(week);
+    return FeedState(items: items);
+  }
+
+  void _onRealtimeInsert(CommunityPost post) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    // 내가 쓴 글은 이미 refresh()로 반영되므로 newCount 를 올리지 않는다.
+    final myUid = ref.read(supabaseClientProvider).auth.currentUser?.id;
+    final isMine = post.userId == myUid;
+
+    final newItem = FeedItem(
+      post: post,
+      cheerCount: 0,
+      cheeredByMe: false,
+      commentCount: 0,
+    );
+    // 이미 목록에 있으면 무시 (중복 방지)
+    if (current.items.any((f) => f.post.id == post.id)) return;
+
+    state = AsyncData(current.copyWith(
+      items: [newItem, ...current.items],
+      newCount: isMine ? current.newCount : current.newCount + 1,
+    ));
   }
 
   Future<void> refresh() async {
     final week = ref.read(feedWeekProvider);
-    state = await AsyncValue.guard(
-      () => ref.read(communityServiceProvider).fetchFeed(week),
-    );
+    final items =
+        await ref.read(communityServiceProvider).fetchFeed(week);
+    state = AsyncData(FeedState(items: items));
+  }
+
+  /// 새 게시글 알림 배너를 닫을 때 카운트 초기화.
+  void clearNewCount() {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncData(current.copyWith(newCount: 0));
   }
 
   /// 응원 토글 — 낙관적 업데이트.
   Future<void> toggleCheer(String postId) async {
-    final list = state.valueOrNull;
-    if (list == null) return;
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final list = current.items;
     final idx = list.indexWhere((f) => f.post.id == postId);
     if (idx < 0) return;
     final item = list[idx];
@@ -63,13 +121,13 @@ class FeedController extends AsyncNotifier<List<FeedItem>> {
       cheeredByMe: nextCheered,
       cheerCount: item.cheerCount + (nextCheered ? 1 : -1),
     );
-    state = AsyncData(optimistic);
+    state = AsyncData(current.copyWith(items: optimistic));
     try {
       await ref
           .read(communityServiceProvider)
           .toggleCheer(postId, currentlyCheered: item.cheeredByMe);
     } catch (_) {
-      state = AsyncData(list); // 롤백
+      state = AsyncData(current); // 롤백
     }
   }
 }
