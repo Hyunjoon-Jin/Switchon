@@ -90,28 +90,74 @@ class _FeedView extends ConsumerWidget {
     return feedAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('$e')),
-      data: (items) => RefreshIndicator(
-        onRefresh: () => ref.read(feedProvider.notifier).refresh(),
-        child: items.isEmpty
-            ? ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        '아직 글이 없어요.\n같은 주차 동료들에게 첫 인사를 건네보세요!',
-                        textAlign: TextAlign.center,
+      data: (feedState) {
+        final items = feedState.items;
+        final newCount = feedState.newCount;
+        return RefreshIndicator(
+          onRefresh: () => ref.read(feedProvider.notifier).refresh(),
+          child: Column(
+            children: [
+              // 실시간 새 게시글 알림 배너
+              if (newCount > 0)
+                _NewPostsBanner(count: newCount),
+              Expanded(
+                child: items.isEmpty
+                    ? ListView(
+                        children: const [
+                          SizedBox(height: 120),
+                          Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                '아직 글이 없어요.\n같은 주차 동료들에게 첫 인사를 건네보세요!',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: items.length,
+                        itemBuilder: (_, i) => _PostCard(item: items[i]),
                       ),
-                    ),
-                  ),
-                ],
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: items.length,
-                itemBuilder: (_, i) => _PostCard(item: items[i]),
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 실시간으로 도착한 새 게시글 알림 배너.
+class _NewPostsBanner extends ConsumerWidget {
+  const _NewPostsBanner({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () => ref.read(feedProvider.notifier).clearNewCount(),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        color: theme.colorScheme.primaryContainer,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.fiber_new_rounded,
+                size: 18, color: theme.colorScheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Text(
+              '새 게시글 $count개가 도착했어요!',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -239,6 +285,8 @@ class _PostCard extends ConsumerWidget {
               const SizedBox(height: 10),
               if (post.isAchievement)
                 _AchievementBlock(post: post)
+              else if (post.isMealShare && post.mealData != null)
+                _MealShareBlock(mealData: post.mealData!, caption: post.content)
               else
                 Text(post.content),
               if (post.hasPhoto) ...[
@@ -333,6 +381,164 @@ class _AchievementBlock extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// 식단 공유 블록(피드 내).
+class _MealShareBlock extends StatelessWidget {
+  const _MealShareBlock({required this.mealData, required this.caption});
+  final MealShareData mealData;
+  final String caption;
+
+  Color _verdictColor(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    switch (mealData.aiVerdict) {
+      case 'fit':
+        return cs.primary;
+      case 'caution':
+        return Colors.orange;
+      case 'violation':
+        return cs.error;
+      default:
+        return cs.outline;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 헤더: 끼니 + AI 판정 배지
+          Row(
+            children: [
+              Icon(Icons.restaurant_menu_outlined,
+                  size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(mealData.slotLabel,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: theme.colorScheme.primary)),
+              const Spacer(),
+              if (mealData.aiVerdict != null && mealData.aiVerdict!.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _verdictColor(context).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: _verdictColor(context).withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (mealData.aiScore != null) ...[
+                        Text('${mealData.aiScore}점',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                color: _verdictColor(context),
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(mealData.verdictLabel,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                              color: _verdictColor(context))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          // 사진
+          if ((mealData.photoUrl ?? '').isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                mealData.photoUrl!,
+                width: double.infinity,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
+          // 인식한 음식
+          if ((mealData.aiFoods ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(mealData.aiFoods!,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w500)),
+          ],
+          // 칼로리 + 영양소
+          if (mealData.hasNutrition) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                _NutriBadge(label: '${mealData.aiCalories} kcal'),
+                if (mealData.aiCarbsG != null)
+                  _NutriBadge(label: '탄 ${mealData.aiCarbsG}g'),
+                if (mealData.aiProteinG != null)
+                  _NutriBadge(label: '단 ${mealData.aiProteinG}g'),
+                if (mealData.aiFatG != null)
+                  _NutriBadge(label: '지 ${mealData.aiFatG}g'),
+              ],
+            ),
+          ],
+          // 음식 태그
+          if (mealData.foodTags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final tag in mealData.foodTags)
+                  Chip(
+                    label: Text(tag),
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: theme.textTheme.labelSmall,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+              ],
+            ),
+          ],
+          // 한마디 캡션
+          if (caption.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(caption,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _NutriBadge extends StatelessWidget {
+  const _NutriBadge({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(label,
+          style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer)),
     );
   }
 }

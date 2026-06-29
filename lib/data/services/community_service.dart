@@ -104,6 +104,54 @@ class CommunityService {
     });
   }
 
+  /// 식단 공유 게시글 작성 (kind = 'meal_share').
+  Future<void> createMealSharePost({
+    required int week,
+    required String authorName,
+    required MealShareData mealData,
+    String content = '',
+  }) async {
+    final uid = _uid;
+    if (uid == null) throw StateError('로그인이 필요합니다.');
+    await _client.from('community_posts').insert({
+      'user_id': uid,
+      'author_name': authorName,
+      'group_week': week,
+      'content': content.isEmpty ? '${mealData.slotLabel} 식단을 공유했어요 🍽️' : content,
+      'kind': 'meal_share',
+      'meal_data': mealData.toMap(),
+      if (mealData.photoUrl != null && mealData.photoUrl!.isNotEmpty)
+        'photo_url': mealData.photoUrl,
+    });
+  }
+
+  /// community_posts Realtime 구독 — 같은 주차 새 게시글 수신.
+  /// [onInsert]에 신규 CommunityPost 가 전달된다.
+  /// 반환된 RealtimeChannel 을 dispose 시 .unsubscribe() 할 것.
+  RealtimeChannel subscribeToFeed({
+    required int week,
+    required void Function(CommunityPost post) onInsert,
+  }) {
+    final channel = _client
+        .channel('community_posts_week_$week')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'community_posts',
+          callback: (payload) {
+            try {
+              final data = payload.newRecord;
+              // 같은 주차만 처리 (클라이언트 사이드 필터)
+              if (data['group_week'] != week) return;
+              final post = CommunityPost.fromMap(data);
+              onInsert(post);
+            } catch (_) {}
+          },
+        )
+        .subscribe();
+    return channel;
+  }
+
   /// 특정 사용자의 게시글(프로필용).
   Future<List<CommunityPost>> fetchUserPosts(String userId) async {
     final rows = await _client

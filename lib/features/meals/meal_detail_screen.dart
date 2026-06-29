@@ -1,10 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/program/diet_rules.dart';
 import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
+import '../../data/models/community.dart';
 import '../../data/models/meal_log.dart';
+import '../community/community_controller.dart';
+import '../community/nickname.dart';
 import '../stats/stats_controller.dart';
 import 'meal_editor_screen.dart';
 import 'meals_controller.dart';
@@ -22,7 +27,8 @@ class MealDetailScreen extends ConsumerStatefulWidget {
 class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
   AiAnalysis? _ai;
   bool _analyzing = false;
-  bool _violationOverridden = false; // AI가 rule_violation 을 덮어썼는지
+  bool _violationOverridden = false;
+  bool _sharing = false;
 
   MealLog get meal => widget.meal;
 
@@ -81,6 +87,104 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
     }
   }
 
+  /// 식단을 커뮤니티 피드에 실시간 공유.
+  Future<void> _shareMeal(BuildContext context, WidgetRef ref) async {
+    final name = await ensureNickname(context, ref);
+    if (name == null || !context.mounted) return;
+
+    // 한마디 캡션 입력 다이얼로그
+    final captionCtrl = TextEditingController();
+    final caption = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('식단 공유'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('같은 주차 동료들에게 오늘 식단을 공유해요!'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: captionCtrl,
+              maxLength: 200,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: '한마디 (선택)',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, captionCtrl.text.trim()),
+              child: const Text('공유')),
+        ],
+      ),
+    );
+    captionCtrl.dispose();
+    if (caption == null || !mounted) return;
+
+    setState(() => _sharing = true);
+    try {
+      final pos = ref.read(currentStagePositionProvider);
+      final week = pos?.week ?? 1;
+      final communityService = ref.read(communityServiceProvider);
+
+      // 식단 사진이 있으면 공개 버킷에 복사(signed URL 대신 public URL 사용)
+      String? publicPhotoUrl;
+      if (meal.hasPhoto) {
+        try {
+          final Uint8List bytes = await ref
+              .read(supabaseClientProvider)
+              .storage
+              .from('meal-photos')
+              .download(meal.photos.first);
+          final fileName = 'meal_share_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          publicPhotoUrl = await communityService.uploadPhoto(bytes, fileName);
+        } catch (_) {
+          // 사진 공유 실패해도 나머지 정보는 공유
+        }
+      }
+
+      final ai = _ai;
+      final mealData = MealShareData(
+        slot: meal.mealSlot ?? 'meal',
+        slotLabel: meal.slotLabel,
+        foodTags: meal.foodTags
+            .map((id) => FoodTags.byId(id)?.label ?? id)
+            .toList(),
+        aiVerdict: ai?.verdict,
+        aiScore: ai?.score,
+        aiCalories: ai?.calories,
+        aiCarbsG: ai?.carbsG,
+        aiProteinG: ai?.proteinG,
+        aiFatG: ai?.fatG,
+        aiFoods: ai?.foods,
+        memo: meal.memo,
+        photoUrl: publicPhotoUrl,
+      );
+
+      await communityService.createMealSharePost(
+        week: week,
+        authorName: name,
+        mealData: mealData,
+        content: caption,
+      );
+
+      // 피드 갱신 (내 게시글은 Realtime 으로도 오지만 즉시 반영)
+      ref.invalidate(feedProvider);
+
+      if (mounted) _snack('커뮤니티에 공유했어요!');
+    } catch (e) {
+      if (mounted) _snack('공유 실패: $e');
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -111,6 +215,16 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
                 Navigator.pop(context, true);
               }
             },
+          ),
+          IconButton(
+            icon: _sharing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.share_outlined),
+            tooltip: '커뮤니티에 공유',
+            onPressed: _sharing ? null : () => _shareMeal(context, ref),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
