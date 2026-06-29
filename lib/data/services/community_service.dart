@@ -138,16 +138,12 @@ class CommunityService {
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'community_posts',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'group_week',
-            value: week,
-          ),
           callback: (payload) {
             try {
-              final post = CommunityPost.fromMap(
-                payload.newRecord as Map<String, dynamic>,
-              );
+              final data = payload.newRecord;
+              // 같은 주차만 처리 (클라이언트 사이드 필터)
+              if (data['group_week'] != week) return;
+              final post = CommunityPost.fromMap(data);
               onInsert(post);
             } catch (_) {}
           },
