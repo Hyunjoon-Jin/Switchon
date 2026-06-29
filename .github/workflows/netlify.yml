@@ -1,0 +1,42 @@
+name: Flutter Web → Netlify
+
+on:
+  push:
+    branches:
+      - claude/switchon-diet-app-brief-14o0ha
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter 설치
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: 의존성 설치
+        run: flutter pub get
+
+      - name: Flutter Web 빌드
+        run: |
+          flutter create . --platforms=web
+          cp tools/index.html web/index.html
+          cp tools/manifest.json web/manifest.json
+          flutter build web --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+
+      - name: Netlify 배포
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: build/web
+          production-branch: claude/switchon-diet-app-brief-14o0ha
+          production-deploy: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions — ${{ github.sha }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: 99979bc2-c6e2-4d6e-b468-f7e699b99040
