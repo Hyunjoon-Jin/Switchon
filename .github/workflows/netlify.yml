@@ -29,6 +29,8 @@ jobs:
             --pwa-strategy=none \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          # 과거에 설치된 Flutter SW 를 제거하는 킬-스위치 SW 배포.
+          cp tools/flutter_service_worker.js build/web/flutter_service_worker.js
 
       - name: Netlify 배포
         uses: nwtgck/actions-netlify@v3
