@@ -25,7 +25,10 @@ echo "▶ 의존성 설치…"
 flutter pub get
 
 echo "▶ 웹 빌드 (release)…"
+# --pwa-strategy=none: Service Worker 를 생성하지 않아 옛 빌드가 캐시되어
+# 새 배포가 안 보이는 문제를 막는다(온라인 전용 앱이라 오프라인 캐시 불필요).
 flutter build web --release \
+  --pwa-strategy=none \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 

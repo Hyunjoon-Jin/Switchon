@@ -44,6 +44,28 @@
       showErr('PROMISE: ' + (r && (r.message || r) || 'unknown'));
     });
   </script>
+  <script>
+    // 과거에 설치된 Service Worker / 캐시가 옛 빌드를 계속 띄우는 문제 방지.
+    // 등록된 SW 와 캐시를 비우고, 정리한 경우 한 번만 새로고침한다.
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        var hadSw = regs && regs.length > 0;
+        var jobs = (regs || []).map(function (r) { return r.unregister(); });
+        if (window.caches && caches.keys) {
+          jobs.push(caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+        Promise.all(jobs).then(function () {
+          if (hadSw && !sessionStorage.getItem('sw_purged')) {
+            sessionStorage.setItem('sw_purged', '1');
+            location.reload();
+          }
+        }).catch(function () {});
+      }).catch(function () {});
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
