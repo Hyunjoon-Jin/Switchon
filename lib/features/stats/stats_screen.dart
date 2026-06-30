@@ -10,6 +10,7 @@ import '../meals/meal_detail_screen.dart';
 import 'meal_stats.dart';
 import 'stats.dart';
 import 'stats_controller.dart';
+import 'widgets/meal_calendar_card.dart';
 
 /// 통계 대시보드 — 기간 토글 + 달성률/항목 + 식사·영양 추이.
 class StatsScreen extends ConsumerWidget {
@@ -38,10 +39,13 @@ class StatsScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(statsProvider);
           ref.invalidate(mealStatsProvider);
+          ref.invalidate(mealCalendarProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            const MealCalendarCard(),
+            const SizedBox(height: 16),
             _PeriodToggle(
               period: period,
               onChanged: (d) =>

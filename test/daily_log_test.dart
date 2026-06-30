@@ -8,21 +8,26 @@ void main() {
     expect(DailyLog.empty(date).completionRate, 0.0);
   });
 
-  test('물 2000ml 이상이면 물 항목 달성', () {
-    final log = DailyLog(logDate: date, waterMl: 2000);
-    expect(log.waterDone, true);
-    expect(log.completionRate, 0.25);
+  test('끼니 1개 체크 시 1/5 달성', () {
+    final log = DailyLog(logDate: date, missionDone: const ['breakfast']);
+    expect(log.mealDone('breakfast'), true);
+    expect(log.mealsDoneCount, 1);
+    expect(log.completionRate, closeTo(0.2, 1e-9));
   });
 
-  test('네 항목 모두 충족 시 100%', () {
+  test('끼니 4개 + 운동 모두 충족 시 100%', () {
     final log = DailyLog(
       logDate: date,
-      waterMl: 2100,
-      sleepHours: 7,
-      fastingDone: true,
       exerciseDone: true,
+      missionDone: const ['breakfast', 'lunch', 'snack', 'dinner'],
     );
+    expect(log.mealsDoneCount, 4);
     expect(log.completionRate, 1.0);
+  });
+
+  test('물 2000ml 이상이면 물 항목 달성(getter 유지)', () {
+    final log = DailyLog(logDate: date, waterMl: 2000);
+    expect(log.waterDone, true);
   });
 
   test('수면 6시간 미만은 미달성', () {

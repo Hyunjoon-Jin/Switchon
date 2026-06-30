@@ -26,6 +26,20 @@ class DailyLog {
   static const int waterTargetMl = 2000;
   static const double sleepTargetHours = 6;
 
+  /// 끼니 슬롯 키 — 체크 상태는 [missionDone] 에 이 키로 저장됩니다.
+  static const List<String> mealSlots = [
+    'breakfast', // 아침
+    'lunch', // 점심
+    'snack', // 간식
+    'dinner', // 저녁
+  ];
+
+  /// 해당 끼니를 (식단표대로) 챙겼는지 체크 여부.
+  bool mealDone(String slot) => missionDone.contains(slot);
+
+  /// 오늘 챙긴 끼니 수(0~4).
+  int get mealsDoneCount => mealSlots.where(missionDone.contains).length;
+
   bool get waterDone => waterMl >= waterTargetMl;
   bool get sleepDone => (sleepHours ?? 0) >= sleepTargetHours;
   bool get hasSleepTimes =>
@@ -38,12 +52,10 @@ class DailyLog {
     return diff / 60.0;
   }
 
-  /// 4개 항목(물·수면·단식·운동) 기준 달성률 0.0~1.0
+  /// 끼니 4개(아침·점심·간식·저녁) + 고강도 운동 기준 달성률 0.0~1.0
   double get completionRate {
-    final done = [waterDone, sleepDone, fastingDone, exerciseDone]
-        .where((e) => e)
-        .length;
-    return done / 4;
+    final done = mealsDoneCount + (exerciseDone ? 1 : 0);
+    return done / (mealSlots.length + 1);
   }
 
   static DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);

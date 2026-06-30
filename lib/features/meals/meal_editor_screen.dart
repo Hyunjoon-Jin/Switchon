@@ -15,10 +15,13 @@ const int kMaxMealPhotos = 4;
 
 /// 식단 기록 추가/수정 화면.
 class MealEditorScreen extends ConsumerStatefulWidget {
-  const MealEditorScreen({super.key, this.existing});
+  const MealEditorScreen({super.key, this.existing, this.initialSlot});
 
   /// null 이면 새 기록, 있으면 수정.
   final MealLog? existing;
+
+  /// 새 기록일 때 미리 선택할 끼니 슬롯(아침/점심/간식/저녁).
+  final String? initialSlot;
 
   @override
   ConsumerState<MealEditorScreen> createState() => _MealEditorScreenState();
@@ -44,7 +47,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
     final e = widget.existing;
     _memo = TextEditingController(text: e?.memo ?? '');
     _loggedAt = e?.loggedAt ?? DateTime.now();
-    _slot = e?.mealSlot ?? _guessSlot(_loggedAt);
+    _slot = e?.mealSlot ?? widget.initialSlot ?? _guessSlot(_loggedAt);
     if (e != null) {
       _tags.addAll(e.foodTags);
       _existingPaths.addAll(e.photos);
