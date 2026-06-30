@@ -32,4 +32,7 @@ flutter build web --release \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
   --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 
+# 과거에 설치된 Flutter SW 를 제거하는 킬-스위치 SW 를 같은 경로로 배포.
+cp tools/flutter_service_worker.js build/web/flutter_service_worker.js
+
 echo "✅ 빌드 완료 → build/web"
