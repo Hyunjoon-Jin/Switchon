@@ -25,19 +25,42 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "SAMEORIGIN"
 
-# Flutter JS/WASM 정적 에셋 — 장기 캐싱
+# Flutter 엔트리 파일 — 빌드마다 파일명이 고정이므로 immutable 로 캐싱하면
+# 새 배포가 사용자에게 반영되지 않는다. 항상 재검증(must-revalidate)하게 한다.
 [[headers]]
   for = "/flutter_bootstrap.js"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/*.js"
+  for = "/main.dart.js"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
+  for = "/flutter.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/flutter_service_worker.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# 핑거프린트(해시)된 정적 에셋만 장기 캐싱.
+[[headers]]
   for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Cross-Origin-Resource-Policy = "cross-origin"
+
+[[headers]]
+  for = "/canvaskit/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
     Cross-Origin-Resource-Policy = "cross-origin"
