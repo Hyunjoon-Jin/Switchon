@@ -27,23 +27,6 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
     );
   }
 
-  Future<void> addShake() async {
-    await ref.read(supabaseServiceProvider).addShake();
-    await _reload();
-  }
-
-  /// 가장 최근에 기록한 셰이크 한 건을 삭제. 셰이크가 없으면 아무 것도 하지 않음.
-  Future<void> removeShake() async {
-    final logs = state.valueOrNull ?? [];
-    final latest = logs.where((m) => m.isShake).fold<MealLog?>(
-      null,
-      (acc, m) => acc == null || m.loggedAt.isAfter(acc.loggedAt) ? m : acc,
-    );
-    if (latest == null) return;
-    await ref.read(supabaseServiceProvider).deleteMeal(latest.id);
-    await _reload();
-  }
-
   Future<void> addMeal({
     String? mealSlot,
     String? memo,
@@ -93,7 +76,3 @@ class MealsController extends AsyncNotifier<List<MealLog>> {
     await _reload();
   }
 }
-
-/// 오늘 셰이크 총 횟수.
-int shakeCountOf(List<MealLog> logs) =>
-    logs.where((m) => m.isShake).fold(0, (sum, m) => sum + m.shakeCount);

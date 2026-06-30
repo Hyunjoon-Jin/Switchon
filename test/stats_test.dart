@@ -8,15 +8,11 @@ void main() {
   final today = DateTime(2026, 6, 26);
 
   DailyLog log(DateTime d,
-          {int water = 0,
-          double? sleep,
-          bool fast = false,
+          {bool fast = false,
           bool ex = false,
           List<String> meals = const []}) =>
       DailyLog(
         logDate: d,
-        waterMl: water,
-        sleepHours: sleep,
         fastingDone: fast,
         exerciseDone: ex,
         missionDone: meals,
@@ -54,28 +50,24 @@ void main() {
     expect(s.daysLogged, 1);
   });
 
-  test('항목별 달성 일수 집계', () {
+  test('항목별 달성 일수 집계 (단식·운동)', () {
     final s = computeStats(
       recentLogs: [
-        log(today, water: 2000), // 물만
-        log(today.subtract(const Duration(days: 1)), sleep: 8, fast: true),
+        log(today, ex: true),
+        log(today.subtract(const Duration(days: 1)), fast: true),
       ],
       meals: [],
       fastings: [],
       today: today,
     );
-    expect(s.waterDays, 1);
-    expect(s.sleepDays, 1);
     expect(s.fastingDays, 1);
-    expect(s.exerciseDays, 0);
+    expect(s.exerciseDays, 1);
   });
 
-  test('누적: 셰이크 합·단식 완료·위반', () {
+  test('누적: 단식 완료·위반', () {
     final s = computeStats(
       recentLogs: [],
       meals: [
-        MealLog(id: '1', loggedAt: today, type: 'shake', shakeCount: 1),
-        MealLog(id: '2', loggedAt: today, type: 'shake', shakeCount: 1),
         MealLog(id: '3', loggedAt: today, type: 'meal', ruleViolation: true),
         MealLog(id: '4', loggedAt: today, type: 'meal', ruleViolation: false),
       ],
@@ -87,7 +79,6 @@ void main() {
       ],
       today: today,
     );
-    expect(s.totalShakes, 2);
     expect(s.violations, 1);
     expect(s.completedFastings, 1);
   });

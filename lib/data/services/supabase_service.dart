@@ -314,7 +314,7 @@ class SupabaseService {
         .toList();
   }
 
-  /// 전체 식단 기록(통계용 — 셰이크 누적·위반 집계).
+  /// 전체 식단 기록(통계용 — 위반·식사 집계).
   Future<List<MealLog>> fetchAllMeals() async {
     final uid = _requireUid();
     final rows = await _client
@@ -325,15 +325,6 @@ class SupabaseService {
     return (rows as List)
         .map((e) => MealLog.fromMap(e as Map<String, dynamic>))
         .toList();
-  }
-
-  Future<void> addShake() async {
-    final uid = _requireUid();
-    await _client.from('meal_logs').insert({
-      'user_id': uid,
-      'type': 'shake',
-      'shake_count': 1,
-    });
   }
 
   Future<void> addMeal({

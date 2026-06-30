@@ -25,7 +25,6 @@ class MealLog {
     required this.id,
     required this.loggedAt,
     required this.type,
-    this.shakeCount = 0,
     this.mealSlot,
     this.photoPath = '',
     this.photoUrls = const [],
@@ -47,8 +46,7 @@ class MealLog {
 
   final String id;
   final DateTime loggedAt;
-  final String type; // shake | meal
-  final int shakeCount;
+  final String type; // meal | (legacy) shake
   final String? mealSlot; // breakfast | lunch | dinner | snack
   final String photoPath; // (레거시) 단일 사진 경로
   final List<String> photoUrls; // 다중 사진 경로(스토리지 경로)
@@ -69,6 +67,8 @@ class MealLog {
   final int? aiFatG;
   final String? aiConfidence; // high | medium | low
 
+  /// (레거시) 셰이크 기록 여부 — 셰이크 기록 기능은 제거됐으나,
+  /// 과거에 쌓인 type='shake' 행을 목록·통계에서 걸러내기 위해 유지합니다.
   bool get isShake => type == 'shake';
   String get slotLabel => MealSlot.labelOf(mealSlot);
 
@@ -106,7 +106,6 @@ class MealLog {
       id: map['id'] as String,
       loggedAt: DateTime.parse(map['logged_at'] as String).toLocal(),
       type: map['type'] as String,
-      shakeCount: (map['shake_count'] as int?) ?? 0,
       mealSlot: map['meal_slot'] as String?,
       photoPath: (map['photo_url'] as String?) ?? '',
       photoUrls: ((map['photo_urls'] as List?) ?? const [])

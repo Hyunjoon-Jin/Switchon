@@ -8,11 +8,8 @@ class StatsSummary {
     required this.trend,
     required this.daysLogged,
     required this.avgCompletion,
-    required this.waterDays,
-    required this.sleepDays,
     required this.fastingDays,
     required this.exerciseDays,
-    required this.totalShakes,
     required this.completedFastings,
     required this.violations,
     required this.currentStreak,
@@ -24,20 +21,17 @@ class StatsSummary {
   final double avgCompletion; // 기록한 날 기준 평균 0.0~1.0
 
   // 윈도우 내 항목별 달성 일수
-  final int waterDays;
-  final int sleepDays;
   final int fastingDays;
   final int exerciseDays;
 
   // 누적(전체 기간)
-  final int totalShakes;
   final int completedFastings;
   final int violations;
 
   /// 오늘 기준 연속 달성일(달성률 50% 이상).
   final int currentStreak;
 
-  bool get isEmpty => daysLogged == 0 && totalShakes == 0;
+  bool get isEmpty => daysLogged == 0;
 }
 
 class DayBar {
@@ -66,7 +60,7 @@ StatsSummary computeStats({
   final trend = <DayBar>[];
   var sumRate = 0.0;
   var logged = 0;
-  var waterDays = 0, sleepDays = 0, fastingDays = 0, exerciseDays = 0;
+  var fastingDays = 0, exerciseDays = 0;
 
   for (var i = windowDays - 1; i >= 0; i--) {
     final date = base.subtract(Duration(days: i));
@@ -75,8 +69,6 @@ StatsSummary computeStats({
       trend.add(DayBar(date: date, rate: log.completionRate, logged: true));
       sumRate += log.completionRate;
       logged++;
-      if (log.waterDone) waterDays++;
-      if (log.sleepDone) sleepDays++;
       if (log.fastingDone) fastingDays++;
       if (log.exerciseDone) exerciseDays++;
     } else {
@@ -84,9 +76,6 @@ StatsSummary computeStats({
     }
   }
 
-  final totalShakes = meals
-      .where((m) => m.isShake)
-      .fold<int>(0, (sum, m) => sum + m.shakeCount);
   final violations = meals.where((m) => m.ruleViolation == true).length;
   final completedFastings =
       fastings.where((f) => f.status == 'completed').length;
@@ -105,11 +94,8 @@ StatsSummary computeStats({
     trend: trend,
     daysLogged: logged,
     avgCompletion: logged == 0 ? 0 : sumRate / logged,
-    waterDays: waterDays,
-    sleepDays: sleepDays,
     fastingDays: fastingDays,
     exerciseDays: exerciseDays,
-    totalShakes: totalShakes,
     completedFastings: completedFastings,
     violations: violations,
     currentStreak: currentStreak,
