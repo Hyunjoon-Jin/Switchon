@@ -26,6 +26,7 @@ jobs:
           cp tools/index.html web/index.html
           cp tools/manifest.json web/manifest.json
           flutter build web --release \
+            --pwa-strategy=none \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
