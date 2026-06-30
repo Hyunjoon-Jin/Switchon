@@ -70,6 +70,8 @@ class MealsScreen extends ConsumerWidget {
                 count: shakes,
                 onAdd: () =>
                     ref.read(mealsControllerProvider.notifier).addShake(),
+                onRemove: () =>
+                    ref.read(mealsControllerProvider.notifier).removeShake(),
               ),
               const SizedBox(height: 12),
               const _WaterCard(),
@@ -102,9 +104,14 @@ class MealsScreen extends ConsumerWidget {
 }
 
 class _ShakeCounter extends StatelessWidget {
-  const _ShakeCounter({required this.count, required this.onAdd});
+  const _ShakeCounter({
+    required this.count,
+    required this.onAdd,
+    required this.onRemove,
+  });
   final int count;
   final VoidCallback onAdd;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +135,12 @@ class _ShakeCounter extends StatelessWidget {
                 ],
               ),
             ),
+            if (count > 0)
+              IconButton(
+                tooltip: '셰이크 1회 삭제',
+                onPressed: onRemove,
+                icon: const Icon(Icons.remove_circle_outline),
+              ),
             FilledButton.tonalIcon(
               // 전역 테마의 '가로 꽉 채움'을 무력화해 Row 안에서 깨지지 않게.
               style: const ButtonStyle(

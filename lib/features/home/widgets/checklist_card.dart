@@ -17,6 +17,7 @@ class ChecklistCard extends StatelessWidget {
     required this.shakeCount,
     required this.onAddWater,
     required this.onAddShake,
+    required this.onRemoveShake,
     required this.onSetSleepStart,
     required this.onSetSleepEnd,
     required this.fastingSession,
@@ -29,6 +30,7 @@ class ChecklistCard extends StatelessWidget {
   final int shakeCount;
   final ValueChanged<int> onAddWater;
   final VoidCallback onAddShake;
+  final VoidCallback onRemoveShake;
   final ValueChanged<int> onSetSleepStart;
   final ValueChanged<int> onSetSleepEnd;
   final FastingSession? fastingSession;
@@ -63,7 +65,11 @@ class ChecklistCard extends StatelessWidget {
             const Divider(height: 28),
 
             // 단백질 셰이크
-            _ShakeRow(count: shakeCount, onAdd: onAddShake),
+            _ShakeRow(
+              count: shakeCount,
+              onAdd: onAddShake,
+              onRemove: onRemoveShake,
+            ),
             const Divider(height: 28),
 
             // 수면
@@ -189,9 +195,14 @@ class _WaterRow extends StatelessWidget {
 }
 
 class _ShakeRow extends StatelessWidget {
-  const _ShakeRow({required this.count, required this.onAdd});
+  const _ShakeRow({
+    required this.count,
+    required this.onAdd,
+    required this.onRemove,
+  });
   final int count;
   final VoidCallback onAdd;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +226,12 @@ class _ShakeRow extends StatelessWidget {
         ),
         if (count > 0) ...[
           Icon(Icons.check_circle, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
+          IconButton(
+            tooltip: '셰이크 1회 삭제',
+            visualDensity: VisualDensity.compact,
+            onPressed: onRemove,
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
         ],
         FilledButton.tonal(
           style: const ButtonStyle(

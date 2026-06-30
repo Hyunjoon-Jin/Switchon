@@ -111,6 +111,10 @@ class _Today extends ConsumerWidget {
                 context,
                 () => ref.read(mealsControllerProvider.notifier).addShake(),
               ),
+              onRemoveShake: () => _guard(
+                context,
+                () => ref.read(mealsControllerProvider.notifier).removeShake(),
+              ),
               onSetSleepStart: (m) => _guard(
                 context,
                 () => ref
