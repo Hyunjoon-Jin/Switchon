@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/daily_log.dart';
 import '../../fasting/fasting_controller.dart';
-import '../../meals/meals_controller.dart';
 import '../daily_log_controller.dart';
 
 /// 어떤 탭에서든 '+ 기록' FAB으로 열리는 빠른 기록 바텀 시트.
@@ -26,8 +25,6 @@ class _QuickLogSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final log = ref.watch(dailyLogControllerProvider).valueOrNull ??
         DailyLog.empty(DateTime.now());
-    final meals = ref.watch(mealsControllerProvider).valueOrNull ?? [];
-    final shakes = shakeCountOf(meals);
     final session = ref.watch(fastingControllerProvider).valueOrNull;
 
     Future<void> guard(Future<void> Function() fn) async {
@@ -63,45 +60,6 @@ class _QuickLogSheet extends ConsumerWidget {
           Text('빠른 기록', style: theme.textTheme.titleMedium),
           const SizedBox(height: 16),
 
-          // 물
-          _SheetRow(
-            icon: log.waterDone ? Icons.water_drop : Icons.water_drop_outlined,
-            title: '물',
-            subtitle: '${log.waterMl} / ${DailyLog.waterTargetMl}ml',
-            done: log.waterDone,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _SmallBtn(
-                  label: '+250',
-                  onTap: () => guard(() =>
-                      ref.read(dailyLogControllerProvider.notifier).addWater(250)),
-                ),
-                const SizedBox(width: 6),
-                _SmallBtn(
-                  label: '+500',
-                  onTap: () => guard(() =>
-                      ref.read(dailyLogControllerProvider.notifier).addWater(500)),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 20),
-
-          // 셰이크
-          _SheetRow(
-            icon: Icons.local_drink_outlined,
-            title: '단백질 셰이크',
-            subtitle: shakes == 0 ? '기록 없음' : '오늘 $shakes회',
-            done: shakes > 0,
-            trailing: _SmallBtn(
-              label: '+1회',
-              onTap: () =>
-                  guard(() => ref.read(mealsControllerProvider.notifier).addShake()),
-            ),
-          ),
-          const Divider(height: 20),
-
           // 단식
           _FastingSheetRow(
             session: session,
@@ -122,30 +80,6 @@ class _QuickLogSheet extends ConsumerWidget {
                   .read(fastingControllerProvider.notifier)
                   .stop(canceled: !done);
             }),
-          ),
-          const Divider(height: 20),
-
-          // 수면
-          _SheetRow(
-            icon: log.sleepDone ? Icons.bedtime : Icons.bedtime_outlined,
-            title: '수면',
-            subtitle: log.sleepHours != null
-                ? '${log.sleepHours!.toStringAsFixed(1)}h'
-                : '기록 없음',
-            done: log.sleepDone,
-            trailing: TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // 홈 탭으로 유도 (수면은 타임피커가 필요해 시트 내 처리 생략)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('수면은 홈 탭 체크리스트에서 시각을 선택해 기록하세요.'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              },
-              child: const Text('기록하기'),
-            ),
           ),
           const Divider(height: 20),
 

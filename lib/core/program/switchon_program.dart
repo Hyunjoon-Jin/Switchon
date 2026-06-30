@@ -24,6 +24,39 @@ class MealPlan {
   final String? fruit; // 과일 규칙
 }
 
+/// 식단표(주차·일차)의 끼니별 안내 — 사진의 '스위치온 다이어트 식단표' 기준.
+class DayMeals {
+  const DayMeals({
+    required this.breakfast,
+    required this.lunch,
+    required this.snack,
+    required this.dinner,
+    this.isFasting = false,
+  });
+
+  final String breakfast; // 아침
+  final String lunch; // 점심
+  final String snack; // 간식
+  final String dinner; // 저녁
+  final bool isFasting; // 24시간 단식일(아침·점심·간식은 단식)
+
+  /// 슬롯 키('breakfast'|'lunch'|'snack'|'dinner')로 해당 끼니 안내를 반환.
+  String forSlot(String slot) {
+    switch (slot) {
+      case 'breakfast':
+        return breakfast;
+      case 'lunch':
+        return lunch;
+      case 'snack':
+        return snack;
+      case 'dinner':
+        return dinner;
+      default:
+        return '';
+    }
+  }
+}
+
 class StageRule {
   const StageRule({
     required this.id,
@@ -280,6 +313,65 @@ class SwitchOnProgram {
       notes: '근육량 회복 여부에 따라 반복/진행/유지기로 분기합니다. (주차 점검 참고)',
     ),
   ];
+
+  // 끼니 식단표에 쓰는 식사 유형 라벨.
+  static const String mShake = '셰이크';
+  static const String mLowCarb = '저탄수화물식';
+  static const String mNoCarb = '탄수제한식';
+  static const String mFast = '24시간 단식';
+
+  /// 24시간 단식을 진행하는 일차 (주차 → 일차 집합).
+  static const Map<int, Set<int>> fastingDays = {
+    2: {2},
+    3: {2, 6},
+    4: {2, 4, 6},
+  };
+
+  static bool isFastingDay(int week, int day) =>
+      (fastingDays[week] ?? const <int>{}).contains(day);
+
+  /// 주차·일차별 끼니 식단표(아침/점심/간식/저녁).
+  /// 식단표 사진 기준이며, 24시간 단식일은 아침·점심·간식이 단식입니다.
+  static DayMeals dayMeals(int week, int day) {
+    final w = week.clamp(1, totalWeeks).toInt();
+    final d = day.clamp(1, daysPerWeek).toInt();
+    final fast = isFastingDay(w, d);
+
+    // 아침: 단식일이 아니면 셰이크.
+    final breakfast = fast ? mFast : mShake;
+
+    // 점심: 1주차 1~3일은 셰이크, 그 외에는 저탄수화물식.
+    final String lunch;
+    if (fast) {
+      lunch = mFast;
+    } else if (w == 1 && d <= 3) {
+      lunch = mShake;
+    } else {
+      lunch = mLowCarb;
+    }
+
+    // 간식: 단식일이 아니면 셰이크.
+    final snack = fast ? mFast : mShake;
+
+    // 저녁: 1주차는 셰이크, 2·3주차는 탄수제한식,
+    //       4주차는 단식일이면 저탄수화물식 / 그 외엔 탄수제한식.
+    final String dinner;
+    if (w == 1) {
+      dinner = mShake;
+    } else if (w == 4) {
+      dinner = fast ? mLowCarb : mNoCarb;
+    } else {
+      dinner = mNoCarb;
+    }
+
+    return DayMeals(
+      breakfast: breakfast,
+      lunch: lunch,
+      snack: snack,
+      dinner: dinner,
+      isFasting: fast,
+    );
+  }
 
   /// 주차/일차에 해당하는 단계 규칙을 찾습니다. (단계 추적 엔진의 핵심)
   static StageRule stageFor(int week, int day) {

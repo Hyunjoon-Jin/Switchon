@@ -7,13 +7,19 @@ import 'package:switchon/features/stats/stats.dart';
 void main() {
   final today = DateTime(2026, 6, 26);
 
-  DailyLog log(DateTime d, {int water = 0, double? sleep, bool fast = false, bool ex = false}) =>
+  DailyLog log(DateTime d,
+          {int water = 0,
+          double? sleep,
+          bool fast = false,
+          bool ex = false,
+          List<String> meals = const []}) =>
       DailyLog(
         logDate: d,
         waterMl: water,
         sleepHours: sleep,
         fastingDone: fast,
         exerciseDone: ex,
+        missionDone: meals,
       );
 
   test('빈 입력은 isEmpty', () {
@@ -30,7 +36,11 @@ void main() {
 
   test('추이는 윈도우 길이만큼, 빈 날은 logged=false', () {
     final s = computeStats(
-      recentLogs: [log(today, water: 2000, sleep: 7, fast: true, ex: true)],
+      recentLogs: [
+        log(today,
+            ex: true,
+            meals: const ['breakfast', 'lunch', 'snack', 'dinner'])
+      ],
       meals: [],
       fastings: [],
       today: today,

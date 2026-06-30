@@ -7,14 +7,11 @@ import '../../core/providers.dart';
 import '../../core/theme/glass.dart';
 import '../../data/models/profile.dart';
 import '../branch/branch_check_screen.dart';
-import '../fasting/fasting_controller.dart';
 import '../meal_guide/meal_guide_screen.dart';
-import '../meals/meals_controller.dart';
 import '../recovery/recovery_card.dart';
 import '../reminders/reminders_screen.dart';
 import 'daily_log_controller.dart';
 import 'widgets/checklist_card.dart';
-import 'widgets/mission_card.dart';
 
 /// 홈 — 오늘의 단계(주차/일차) + 미션 + 일일 체크리스트 + 식품 가이드.
 class HomeScreen extends ConsumerWidget {
@@ -56,7 +53,6 @@ class _Today extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final pos = StageEngine.compute(
       startDate: profile.startDate ?? DateTime.now(),
       status: profile.status,
@@ -65,15 +61,12 @@ class _Today extends ConsumerWidget {
     );
     final stage = pos.stage;
     final logAsync = ref.watch(dailyLogControllerProvider);
-    final mealsAsync = ref.watch(mealsControllerProvider);
-    final fastingAsync = ref.watch(fastingControllerProvider);
+    final dayMeals = SwitchOnProgram.dayMeals(pos.week, pos.day);
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(profileProvider);
         ref.invalidate(dailyLogControllerProvider);
-        ref.invalidate(mealsControllerProvider);
-        ref.invalidate(fastingControllerProvider);
       },
       child: ListView(
         padding: const EdgeInsets.all(20),
@@ -85,7 +78,7 @@ class _Today extends ConsumerWidget {
           _StageHero(pos: pos),
           const SizedBox(height: 20),
 
-          // 오늘의 체크리스트 — 물·셰이크·수면·단식·운동 한 곳에서 입력
+          // 오늘의 체크리스트 — 끼니(식단표) + 고강도 운동
           logAsync.when(
             loading: () => const Card(
               child: Padding(
@@ -101,42 +94,13 @@ class _Today extends ConsumerWidget {
             ),
             data: (log) => ChecklistCard(
               log: log,
-              shakeCount: shakeCountOf(mealsAsync.valueOrNull ?? []),
-              fastingSession: fastingAsync.valueOrNull,
-              onAddWater: (ml) => _guard(
-                context,
-                () => ref.read(dailyLogControllerProvider.notifier).addWater(ml),
-              ),
-              onAddShake: () => _guard(
-                context,
-                () => ref.read(mealsControllerProvider.notifier).addShake(),
-              ),
-              onSetSleepStart: (m) => _guard(
+              dayMeals: dayMeals,
+              onToggleMeal: (slot) => _guard(
                 context,
                 () => ref
                     .read(dailyLogControllerProvider.notifier)
-                    .setSleepTimes(startMinutes: m),
+                    .toggleMeal(slot),
               ),
-              onSetSleepEnd: (m) => _guard(
-                context,
-                () => ref
-                    .read(dailyLogControllerProvider.notifier)
-                    .setSleepTimes(endMinutes: m),
-              ),
-              onStartFasting: (hours) => _guard(
-                context,
-                () async {
-                  await ref
-                      .read(fastingControllerProvider.notifier)
-                      .start(hours);
-                  if (!log.fastingDone) {
-                    await ref
-                        .read(dailyLogControllerProvider.notifier)
-                        .toggleFasting();
-                  }
-                },
-              ),
-              onStopFasting: () => _confirmStopFasting(context, ref),
               onToggleExercise: () => _guard(
                 context,
                 () => ref
@@ -147,8 +111,6 @@ class _Today extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          MissionCard(mission: stage.mission),
-          const SizedBox(height: 16),
           _MealGuideCard(stage: stage),
 
           if (stage.notes != null) ...[
@@ -171,41 +133,6 @@ class _Today extends ConsumerWidget {
         );
       }
     }
-  }
-
-  Future<void> _confirmStopFasting(BuildContext context, WidgetRef ref) async {
-    final session = ref.read(fastingControllerProvider).valueOrNull;
-    if (session == null) return;
-    final reachedGoal = session.reachedGoalAt(DateTime.now());
-
-    bool proceed = true;
-    if (!reachedGoal) {
-      proceed = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('단식을 중단할까요?'),
-              content: const Text('목표 시간 전이에요. 무리하지 않는 것도 중요해요.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('계속하기'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('중단'),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-    }
-    if (!proceed) return;
-
-    await _guard(context, () async {
-      await ref
-          .read(fastingControllerProvider.notifier)
-          .stop(canceled: !reachedGoal);
-    });
   }
 }
 

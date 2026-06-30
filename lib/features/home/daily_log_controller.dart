@@ -53,6 +53,9 @@ class DailyLogController extends AsyncNotifier<DailyLog> {
   Future<void> toggleFasting() =>
       _mutate((c) => c.copyWith(fastingDone: !c.fastingDone));
 
+  /// 끼니 슬롯(아침/점심/간식/저녁) 체크 토글. missionDone 에 슬롯 키로 저장.
+  Future<void> toggleMeal(String slot) => toggleMission(slot);
+
   /// 오늘의 미션 항목(라벨) 체크 토글.
   Future<void> toggleMission(String label) => _mutate((c) {
         final set = c.missionDone.toSet();
