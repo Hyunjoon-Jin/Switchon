@@ -29,43 +29,10 @@ class DailyLogController extends AsyncNotifier<DailyLog> {
     }
   }
 
-  Future<void> addWater(int ml) => _mutate(
-        (c) => c.copyWith(
-          waterMl: (c.waterMl + ml).clamp(0, 100000).toInt(),
-        ),
-      );
-
-  /// 잠든/일어난 시각을 설정하고(부분 가능) 수면 시간을 자동 계산.
-  Future<void> setSleepTimes({int? startMinutes, int? endMinutes}) =>
-      _mutate((c) {
-        final start = startMinutes ?? c.sleepStartMinutes;
-        final end = endMinutes ?? c.sleepEndMinutes;
-        final hours = (start != null && end != null)
-            ? DailyLog.durationHours(start, end)
-            : c.sleepHours;
-        return c.copyWith(
-          sleepStartMinutes: start,
-          sleepEndMinutes: end,
-          sleepHours: hours,
-        );
-      });
-
-  Future<void> toggleFasting() =>
-      _mutate((c) => c.copyWith(fastingDone: !c.fastingDone));
-
   /// 끼니 슬롯(아침/점심/간식/저녁) 체크 토글. missionDone 에 슬롯 키로 저장.
-  Future<void> toggleMeal(String slot) => toggleMission(slot);
-
-  /// 오늘의 미션 항목(라벨) 체크 토글.
-  Future<void> toggleMission(String label) => _mutate((c) {
+  Future<void> toggleMeal(String slot) => _mutate((c) {
         final set = c.missionDone.toSet();
-        if (!set.remove(label)) set.add(label);
-        return c.copyWith(missionDone: set.toList());
-      });
-
-  /// 자동 체크된 미션을 저장합니다 (이미 체크된 경우 무시).
-  Future<void> setMissionChecked(String label) => _mutate((c) {
-        final set = c.missionDone.toSet()..add(label);
+        if (!set.remove(slot)) set.add(slot);
         return c.copyWith(missionDone: set.toList());
       });
 

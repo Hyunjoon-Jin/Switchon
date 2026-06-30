@@ -83,7 +83,6 @@ class _DayList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final shakes = shakeCountOf(logs);
     final meals = logs.where((m) => !m.isShake).toList();
 
     return ListView(
@@ -94,11 +93,6 @@ class _DayList extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            Icon(Icons.local_drink_outlined,
-                size: 18, color: theme.colorScheme.primary),
-            const SizedBox(width: 6),
-            Text('셰이크 $shakes회'),
-            const SizedBox(width: 16),
             Icon(Icons.restaurant_outlined,
                 size: 18, color: theme.colorScheme.primary),
             const SizedBox(width: 6),

@@ -313,7 +313,7 @@ class _Bar extends StatelessWidget {
   }
 }
 
-/// 항목별 달성 일수 (물·수면·단식·운동).
+/// 항목별 달성 일수 (단식·운동).
 class _ItemDaysCard extends StatelessWidget {
   const _ItemDaysCard({required this.s});
   final StatsSummary s;
@@ -323,8 +323,6 @@ class _ItemDaysCard extends StatelessWidget {
     final theme = Theme.of(context);
     final window = s.trend.length;
     final items = [
-      ('물 2L', s.waterDays, Icons.water_drop_outlined),
-      ('수면 6h+', s.sleepDays, Icons.bedtime_outlined),
       ('단식', s.fastingDays, Icons.timer_outlined),
       ('운동', s.exerciseDays, Icons.fitness_center_outlined),
     ];
@@ -400,13 +398,6 @@ class _TotalsCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: _Stat(
-                    value: '${s.totalShakes}',
-                    label: '셰이크',
-                    icon: Icons.local_drink_outlined,
-                  ),
-                ),
                 Expanded(
                   child: _Stat(
                     value: '${s.completedFastings}',

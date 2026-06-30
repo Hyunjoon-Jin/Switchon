@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/glass.dart';
 import '../community/community_screen.dart';
-import '../fasting/fasting_floating_timer.dart';
 import '../fasting/fasting_screen.dart';
 import '../home/home_screen.dart';
 import '../home/widgets/quick_log_sheet.dart';
@@ -41,20 +40,8 @@ class _MainShellState extends ConsumerState<MainShell> {
               onPressed: () => showQuickLogSheet(context),
               child: const Icon(Icons.add),
             ),
-      body: Stack(
-        children: [
-          IndexedStack(index: _index, children: _screens),
-          // 단식 진행 중이면 우측 하단에 떠 있는 타이머(단식 탭에선 숨김).
-          if (_index != 1)
-            Positioned(
-              right: 16,
-              bottom: 72,
-              child: FastingFloatingTimer(
-                onTap: () => setState(() => _index = 1),
-              ),
-            ),
-        ],
-      ),
+      // 단식은 단식 탭에서만 관리합니다(오늘 탭의 단식 타이머/플로팅 제거).
+      body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: GlassCard(
