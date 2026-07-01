@@ -2,14 +2,14 @@
 
 이미 준비된 것 (자동 완료):
 - 웹 호환 코드 + `netlify.toml`(빌드 명령/배포 폴더) + `netlify_build.sh`
-- Netlify 사이트: **switchon-diet** → https://switchon-diet.netlify.app
-- 관리 화면: https://app.netlify.com/projects/switchon-diet
+- Netlify 사이트: **switchondiet** → https://switchondiet.netlify.app
+- 관리 화면: https://app.netlify.com/projects/switchondiet
 - 환경변수 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 입력 완료
 
 ## 마지막 단계 — 깃허브 저장소 연결 (브라우저, 2~3분)
 GitHub ↔ Netlify 연결 승인은 본인만 할 수 있어요.
 
-1. https://app.netlify.com/projects/switchon-diet 접속 (Netlify 로그인)
+1. https://app.netlify.com/projects/switchondiet 접속 (Netlify 로그인)
 2. **Site configuration → Build & deploy → Continuous deployment** 이동
 3. **Link repository**(저장소 연결) 클릭 → **GitHub** 선택 → 권한 승인(Authorize)
 4. 저장소 **`hyunjoon-jin/switchon`** 선택
@@ -19,7 +19,7 @@ GitHub ↔ Netlify 연결 승인은 본인만 할 수 있어요.
 6. **Deploy(배포)** 클릭
 
 첫 빌드는 Flutter 다운로드 때문에 **5~10분**쯤 걸려요. 끝나면
-**https://switchon-diet.netlify.app** 에서 앱이 열려요. (폰 브라우저로 바로 접속 가능)
+**https://switchondiet.netlify.app** 에서 앱이 열려요. (폰 브라우저로 바로 접속 가능)
 
 ## 빌드가 실패하면?
 관리 화면의 **Deploys → 실패한 배포 → Deploy log** 를 열어 마지막 빨간 오류를
