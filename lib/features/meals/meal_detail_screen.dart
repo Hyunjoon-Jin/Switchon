@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/program/diet_rules.dart';
+import '../../core/program/food_catalog.dart';
 import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
 import '../../data/models/community.dart';
@@ -154,7 +154,7 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
         slot: meal.mealSlot ?? 'meal',
         slotLabel: meal.slotLabel,
         foodTags: meal.foodTags
-            .map((id) => FoodTags.byId(id)?.label ?? id)
+            .map((raw) => FoodPortion.decode(raw).display)
             .toList(),
         aiVerdict: ai?.verdict,
         aiScore: ai?.score,
@@ -291,15 +291,15 @@ class _MealDetailScreenState extends ConsumerState<MealDetailScreen> {
           const SizedBox(height: 16),
 
           if (meal.foodTags.isNotEmpty) ...[
-            Text('음식 태그', style: theme.textTheme.labelLarge),
+            Text('먹은 메뉴', style: theme.textTheme.labelLarge),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final id in meal.foodTags)
+                for (final raw in meal.foodTags)
                   Chip(
-                    label: Text(FoodTags.byId(id)?.label ?? id),
+                    label: Text(FoodPortion.decode(raw).display),
                     visualDensity: VisualDensity.compact,
                   ),
               ],

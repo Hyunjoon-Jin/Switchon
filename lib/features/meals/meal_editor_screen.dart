@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/program/diet_rules.dart';
+import '../../core/program/food_catalog.dart';
 import '../../core/program/switchon_program.dart';
 import '../../core/providers.dart';
 import '../../data/models/meal_log.dart';
 import 'meals_controller.dart';
 import 'widgets/ai_result_card.dart';
+import 'widgets/food_picker.dart';
 
 const int kMaxMealPhotos = 4;
 
@@ -31,7 +33,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
   late final TextEditingController _memo;
   late DateTime _loggedAt;
   String? _slot;
-  final Set<String> _tags = {};
+  final List<FoodPortion> _foods = []; // 먹은 메뉴 + 양
   final List<String> _existingPaths = []; // 이미 저장된 사진 경로
   final List<XFile> _newFiles = []; // 새로 추가한 사진
   bool _saving = false;
@@ -49,7 +51,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
     _loggedAt = e?.loggedAt ?? DateTime.now();
     _slot = e?.mealSlot ?? widget.initialSlot ?? _guessSlot(_loggedAt);
     if (e != null) {
-      _tags.addAll(e.foodTags);
+      _foods.addAll(e.foodTags.map(FoodPortion.decode));
       _existingPaths.addAll(e.photos);
       _ai = e.ai;
     }
@@ -153,7 +155,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
     return DietRules.evaluate(
       stageId: pos.stage.id,
       week: pos.week,
-      tagIds: _tags.toList(),
+      tagIds: _foods.map((f) => f.encode()).toList(),
     );
   }
 
@@ -180,7 +182,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
           memo: _memo.text.trim(),
           photoUrls: photoUrls,
           loggedAt: _loggedAt,
-          foodTags: _tags.toList(),
+          foodTags: _foods.map((f) => f.encode()).toList(),
           ruleViolation: eval?.isViolation,
           ai: _ai,
         );
@@ -190,7 +192,7 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
           memo: _memo.text.trim(),
           photoUrls: photoUrls,
           loggedAt: _loggedAt,
-          foodTags: _tags.toList(),
+          foodTags: _foods.map((f) => f.encode()).toList(),
           ruleViolation: eval?.isViolation,
           ai: _ai,
         );
@@ -265,26 +267,16 @@ class _MealEditorScreenState extends ConsumerState<MealEditorScreen> {
             const SizedBox(height: 8),
           ],
 
-          // 태그
-          Text('무엇을 드셨나요? (태그)', style: theme.textTheme.labelLarge),
+          // 메뉴 — 검색해서 고르고 먹은 양까지 입력(같은 메뉴 여러 번 가능)
+          Text('무엇을 드셨나요? (메뉴 검색)', style: theme.textTheme.labelLarge),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              for (final tag in FoodTags.all)
-                FilterChip(
-                  label: Text(tag.label),
-                  selected: _tags.contains(tag.id),
-                  onSelected: (sel) => setState(() {
-                    if (sel) {
-                      _tags.add(tag.id);
-                    } else {
-                      _tags.remove(tag.id);
-                    }
-                  }),
-                ),
-            ],
+          FoodPortionEditor(
+            foods: _foods,
+            onChanged: (v) => setState(() {
+              _foods
+                ..clear()
+                ..addAll(v);
+            }),
           ),
           if (eval != null && !eval.isClean) ...[
             const SizedBox(height: 12),

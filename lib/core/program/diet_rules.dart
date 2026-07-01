@@ -1,8 +1,11 @@
 /// 규칙 위반 감지 엔진 (2차 기능).
 ///
-/// 음식 사진 자동 인식 대신 **사용자가 음식 태그를 선택**하면,
-/// 현재 주차 단계의 규칙셋과 대조해 위반/주의를 판정합니다.
+/// 음식 사진 자동 인식 대신 **사용자가 메뉴를 선택**하면,
+/// 각 메뉴의 분류(category)를 현재 주차 단계의 규칙셋과 대조해
+/// 위반/주의를 판정합니다.
 library;
+
+import 'food_catalog.dart';
 
 class FoodTag {
   const FoodTag(this.id, this.label);
@@ -149,6 +152,8 @@ class DietRules {
   static StageDietRule ruleFor(String stageId) =>
       _byStage[stageId] ?? const StageDietRule();
 
+  /// [tagIds] 는 저장 형식(메뉴 id 또는 "id@양", 레거시 분류 id)을 그대로 받습니다.
+  /// 각 항목은 분류(category)로 환산해 판정하며, 같은 분류는 한 번만 표시합니다.
   static RuleEvaluation evaluate({
     required String stageId,
     required int week,
@@ -157,16 +162,21 @@ class DietRules {
     final rule = ruleFor(stageId);
     final violations = <FoodTag>[];
     final cautions = <FoodTag>[];
+    final seenViolation = <String>{};
+    final seenCaution = <String>{};
 
-    for (final id in tagIds) {
-      final tag = FoodTags.byId(id);
+    for (final raw in tagIds) {
+      final id = FoodPortion.decode(raw).id;
+      final category = FoodCatalog.categoryOf(id);
+      if (category == null) continue;
+      final tag = FoodTags.byId(category);
       if (tag == null) continue;
       final blockedByWhitelist =
-          rule.allowOnly.isNotEmpty && !rule.allowOnly.contains(id);
-      if (blockedByWhitelist || rule.forbidden.contains(id)) {
-        violations.add(tag);
-      } else if (rule.caution.contains(id)) {
-        cautions.add(tag);
+          rule.allowOnly.isNotEmpty && !rule.allowOnly.contains(category);
+      if (blockedByWhitelist || rule.forbidden.contains(category)) {
+        if (seenViolation.add(category)) violations.add(tag);
+      } else if (rule.caution.contains(category)) {
+        if (seenCaution.add(category)) cautions.add(tag);
       }
     }
 

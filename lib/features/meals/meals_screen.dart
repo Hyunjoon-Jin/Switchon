@@ -9,8 +9,8 @@ import '../home/daily_log_controller.dart';
 import '../meal_guide/meal_guide_screen.dart';
 import 'history_screen.dart';
 import 'meal_detail_screen.dart';
-import 'meal_editor_screen.dart';
 import 'meals_controller.dart';
+import 'widgets/meal_quick_log_sheet.dart';
 
 /// 끼니 슬롯 순서/라벨 (식단표와 동일: 아침·점심·간식·저녁).
 const List<(String, String)> kMealSlots = [
@@ -72,11 +72,7 @@ class MealsScreen extends ConsumerWidget {
                   meals:
                       logs.where((m) => m.mealSlot == s.$1).toList(),
                   onToggle: () => _toggle(context, ref, s.$1),
-                  onAdd: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => MealEditorScreen(initialSlot: s.$1),
-                    ),
-                  ),
+                  onAdd: () => showMealQuickLogSheet(context, slot: s.$1),
                 ),
                 const SizedBox(height: 12),
               ],
