@@ -35,4 +35,9 @@ flutter build web --release \
 # 과거에 설치된 Flutter SW 를 제거하는 킬-스위치 SW 를 같은 경로로 배포.
 cp tools/flutter_service_worker.js build/web/flutter_service_worker.js
 
+# 캐시/보안 헤더 + SPA 리다이렉트 — 직접 배포에서도 반드시 적용되도록
+# 퍼블리시 폴더(build/web)에 _headers/_redirects 를 함께 배포한다.
+cp tools/_headers build/web/_headers
+cp tools/_redirects build/web/_redirects
+
 echo "✅ 빌드 완료 → build/web"
