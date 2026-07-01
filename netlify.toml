@@ -25,6 +25,17 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "SAMEORIGIN"
 
+# HTML 엔트리 — 항상 재검증해 새 배포가 즉시 반영되게 한다(모바일 캐시 방지).
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 # Flutter 엔트리 파일 — 빌드마다 파일명이 고정이므로 immutable 로 캐싱하면
 # 새 배포가 사용자에게 반영되지 않는다. 항상 재검증(must-revalidate)하게 한다.
 [[headers]]
